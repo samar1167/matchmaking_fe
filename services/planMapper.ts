@@ -17,6 +17,10 @@ const humanizeKey = (value: string) =>
 export const normalizePlanParameters = (
   payload: PlanParametersResponse["parameters"],
 ): PlanParameters => {
+  if (!payload) {
+    return {};
+  }
+
   if (Array.isArray(payload)) {
     return payload.reduce<PlanParameters>((accumulator, item) => {
       accumulator[item.key] = {

@@ -10,10 +10,22 @@ const EXCLUDED_KEYS = new Set([
   "summary",
   "description",
   "interpretation",
+  "parameters",
   "created_at",
   "updated_at",
   "person_id",
   "person_name",
+  "user",
+  "matched_user",
+  "matched_user_username",
+  "matched_private_person",
+  "matched_private_person_name",
+  "is_private_match",
+  "overall_score",
+  "upgrade_required",
+  "credits_remaining",
+  "matched_user_id",
+  "matched_private_person_id",
   "private_person_id",
   "private_person_name",
   "profile_id",
@@ -46,6 +58,31 @@ const toStringValue = (value: unknown): string | null => {
 
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
+  }
+
+  return null;
+};
+
+const resolveParameterDisplayValue = (parameter: Record<string, unknown>) => {
+  const candidates = [
+    parameter.score,
+    parameter.value,
+    parameter.result,
+    parameter.description,
+    parameter.summary,
+    parameter.text,
+  ];
+
+  for (const candidate of candidates) {
+    const stringValue = toStringValue(candidate);
+
+    if (stringValue !== null) {
+      return stringValue;
+    }
+  }
+
+  if (Boolean(parameter.locked)) {
+    return "Hidden until unlocked";
   }
 
   return null;
@@ -84,6 +121,52 @@ const flattenPrimitiveEntries = (
   return entries;
 };
 
+const normalizeResultParameters = (raw: Record<string, unknown>) => {
+  const parameterList = raw.parameters;
+
+  if (Array.isArray(parameterList)) {
+    const normalized = parameterList
+      .map((parameter) => toObject(parameter))
+      .filter((parameter): parameter is Record<string, unknown> => parameter !== null)
+      .map((parameter, index) => {
+        const key = toStringValue(parameter.key) ?? `parameter-${index + 1}`;
+        const label = toStringValue(parameter.label) ?? humanizeKey(key);
+        const value = resolveParameterDisplayValue(parameter);
+
+        if (value === null) {
+          return null;
+        }
+
+        return {
+          key,
+          label,
+          value,
+          locked: Boolean(parameter.locked),
+        };
+      })
+      .filter(
+        (
+          parameter,
+        ): parameter is {
+          key: string;
+          label: string;
+          value: string;
+          locked: boolean;
+        } => parameter !== null,
+      );
+
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+
+  return flattenPrimitiveEntries(raw).map((entry) => ({
+    key: entry.key,
+    label: humanizeKey(entry.key),
+    value: entry.value,
+  }));
+};
+
 export const extractCompatibilityResults = (payload: unknown): CompatibilityResult[] => {
   if (Array.isArray(payload)) {
     return payload.filter((item) => typeof item === "object") as CompatibilityResult[];
@@ -119,6 +202,10 @@ export const normalizeCompatibilityResults = (
   extractCompatibilityResults(payload).map((result, index) => {
     const raw = (toObject(result) ?? {}) as Record<string, unknown>;
     const personIdValue =
+      raw.matched_private_person ??
+      raw.matched_user ??
+      raw.matched_private_person_id ??
+      raw.matched_user_id ??
       raw.private_person_id ??
       raw.person_id ??
       raw.target_profile_id ??
@@ -127,6 +214,7 @@ export const normalizeCompatibilityResults = (
       `result-${index + 1}`;
     const personId = String(personIdValue);
     const scoreValue =
+      raw.overall_score ??
       raw.score ??
       raw.match_score ??
       raw.compatibility_score ??
@@ -134,6 +222,8 @@ export const normalizeCompatibilityResults = (
       0;
     const score = typeof scoreValue === "number" ? scoreValue : Number(scoreValue) || 0;
     const personName =
+      toStringValue(raw.matched_private_person_name) ??
+      toStringValue(raw.matched_user_username) ??
       toStringValue(raw.private_person_name) ??
       toStringValue(raw.person_name) ??
       toStringValue(raw.name) ??
@@ -141,15 +231,11 @@ export const normalizeCompatibilityResults = (
       `Person ${index + 1}`;
     const summary =
       toStringValue(raw.summary) ??
-      toStringValue(raw.interpretation) ??
       toStringValue(raw.description) ??
+      toStringValue(raw.interpretation) ??
       undefined;
     const createdAt = toStringValue(raw.created_at) ?? undefined;
-    const parameters = flattenPrimitiveEntries(raw).map((entry) => ({
-      key: entry.key,
-      label: humanizeKey(entry.key),
-      value: entry.value,
-    }));
+    const parameters = normalizeResultParameters(raw);
 
     return {
       id: `${personId}-${index}-${createdAt ?? "current"}`,

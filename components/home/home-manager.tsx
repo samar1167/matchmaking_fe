@@ -56,6 +56,48 @@ const isLockedParameter = (key: string, parameters: PlanParameters) => {
   return Boolean(fallback?.paid && !fallback.free);
 };
 
+const shouldBlurParameter = (
+  parameter: StoredCompatibilityResult["parameters"][number],
+  parameters: PlanParameters,
+) => {
+  if (typeof parameter.locked === "boolean") {
+    return parameter.locked;
+  }
+
+  return isLockedParameter(parameter.key, parameters);
+};
+
+function LockedInsightCard({
+  label,
+  value,
+  cta,
+}: {
+  label: string;
+  value: string;
+  cta: string;
+}) {
+  return (
+    <div className="relative isolate overflow-hidden rounded-2xl border border-amber-300/16 bg-[linear-gradient(180deg,rgba(30,41,59,0.88)_0%,rgba(15,23,42,0.96)_100%)] p-5">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_45%)]" />
+      <p className="relative text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-200">
+        Locked Insight
+      </p>
+      <p className="relative mt-3 text-sm font-medium text-white">{label}</p>
+      <p className="relative mt-3 select-none text-sm leading-7 text-slate-200 blur-sm">
+        {value}
+      </p>
+      <div className="absolute inset-x-5 top-1/2 -translate-y-1/2 rounded-xl border border-amber-300/20 bg-slate-950/78 px-3 py-3 text-center backdrop-blur-sm">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-200">
+          Unlock Required
+        </p>
+        <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-100">
+          {cta}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 const scoreTone = (score: number) => {
   if (score >= 85) {
     return "text-emerald-300";
@@ -219,14 +261,22 @@ export function HomeManager() {
   );
 
   const previewResult = topMatches[0] ?? history[0] ?? null;
-  const visiblePreviewParameters = previewResult?.parameters.slice(0, 2) ?? [];
+  const visiblePreviewParameters = useMemo(() => {
+    if (!previewResult) {
+      return [];
+    }
+
+    return previewResult.parameters
+      .filter((parameter) => !shouldBlurParameter(parameter, parameters))
+      .slice(0, 2);
+  }, [parameters, previewResult]);
   const premiumPreviewParameters = useMemo(() => {
     if (!previewResult) {
       return [];
     }
 
     const locked = previewResult.parameters.filter((parameter) =>
-      isLockedParameter(parameter.key, parameters),
+      shouldBlurParameter(parameter, parameters),
     );
 
     if (locked.length > 0) {
@@ -267,8 +317,7 @@ export function HomeManager() {
       setActionMessage(null);
 
       const response = await compatibilityService.calculate({
-        profile_id: profile.id,
-        private_person_id: selectedPersonId,
+        matched_private_person_id: selectedPersonId,
       });
 
       const normalizedResults = normalizeCompatibilityResults(response, {
@@ -632,24 +681,12 @@ export function HomeManager() {
                 )}
 
                 {premiumPreviewParameters.map((parameter) => (
-                  <div
+                  <LockedInsightCard
                     key={`locked-${parameter.key}`}
-                    className="relative overflow-hidden rounded-2xl border border-amber-300/16 bg-[linear-gradient(180deg,rgba(30,41,59,0.88)_0%,rgba(15,23,42,0.96)_100%)] p-5"
-                  >
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_45%)]" />
-                    <p className="relative text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-200">
-                      Locked Insight
-                    </p>
-                    <p className="relative mt-3 text-sm font-medium text-white">
-                      {parameter.label}
-                    </p>
-                    <p className="relative mt-3 select-none text-sm leading-7 text-slate-200 blur-sm">
-                      {parameter.value}
-                    </p>
-                    <div className="absolute inset-x-5 bottom-5 rounded-xl border border-amber-300/20 bg-slate-950/70 px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-200">
-                      Unlock deeper insights
-                    </div>
-                  </div>
+                    cta="Unlock deeper insights"
+                    label={parameter.label}
+                    value={parameter.value}
+                  />
                 ))}
               </div>
             </div>

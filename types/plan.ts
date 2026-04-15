@@ -11,11 +11,11 @@ export interface PlanParameter {
 
 export interface PaymentHistoryItem {
   id: number | string;
-  credits?: number;
-  amount?: number;
-  currency?: string;
+  amount_usd?: string;
+  credits_purchased?: number;
   payment_reference?: string;
   created_at?: string;
+  completed_at?: string;
   status?: string;
 }
 
@@ -29,12 +29,17 @@ export interface PlanParameters {
 }
 
 export interface PlanMeResponse {
-  credits: number;
+  free_credits?: number;
+  paid_credits?: number;
+  total_credits?: number;
+  paid_credit_price_usd?: string;
+  credits_per_purchase?: number;
+  credits?: number;
   meta?: ApiMeta;
 }
 
 export interface PlanParametersResponse {
-  parameters: PlanParameter[] | PlanParameters;
+  parameters?: PlanParameter[] | PlanParameters | null;
   meta?: ApiMeta;
 }
 

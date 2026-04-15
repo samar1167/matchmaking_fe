@@ -1,5 +1,6 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -18,6 +19,7 @@ import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { privatePersonsService } from "@/services/privatePersonsService";
 import { profileService } from "@/services/profileService";
 import { useResultsStore } from "@/store/resultsStore";
+import type { ApiErrorResponse } from "@/types/common";
 import type { PrivatePerson } from "@/types/private-persons";
 import type { UserProfile } from "@/types/profile";
 
@@ -74,6 +76,32 @@ export function CompatibilityManager() {
     );
   };
 
+  const getCompatibilityErrorMessage = (error: unknown) => {
+    if (isAxiosError<ApiErrorResponse | Record<string, string[]>>(error)) {
+      const data = error.response?.data;
+
+      if (data && typeof data === "object") {
+        if ("error" in data && typeof data.error === "string") {
+          return data.error;
+        }
+
+        if ("message" in data && typeof data.message === "string") {
+          return data.message;
+        }
+
+        const fieldErrors = Object.entries(data)
+          .flatMap(([, value]) => (Array.isArray(value) ? value : []))
+          .filter((value): value is string => typeof value === "string");
+
+        if (fieldErrors.length > 0) {
+          return fieldErrors[0];
+        }
+      }
+    }
+
+    return "Compatibility check failed. Please try again.";
+  };
+
   const runCompatibilityCheck = async () => {
     if (!selectedProfileId) {
       setError("Select your profile before running compatibility.");
@@ -92,8 +120,7 @@ export function CompatibilityManager() {
       const responses = await Promise.all(
         selectedPersonIds.map((privatePersonId) =>
           compatibilityService.calculate({
-            profile_id: selectedProfileId,
-            private_person_id: privatePersonId,
+            matched_private_person_id: privatePersonId,
           }),
         ),
       );
@@ -104,8 +131,8 @@ export function CompatibilityManager() {
 
       setResults(normalizedResults);
       router.push("/results");
-    } catch {
-      setError("Compatibility check failed. Please try again.");
+    } catch (error) {
+      setError(getCompatibilityErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

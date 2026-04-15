@@ -4,9 +4,12 @@ export interface ApiMeta {
 }
 
 export interface ApiErrorResponse {
-  message: string;
+  message?: string;
+  error?: string;
   code?: string;
   details?: Record<string, string[]>;
+  credits_remaining?: number;
+  purchase_url?: string;
 }
 
 export interface PaginatedResponse<T> {

@@ -16,7 +16,6 @@ type RegisterFormValues = RegisterRequest & {
 };
 
 const initialValues: RegisterFormValues = {
-  username: "",
   email: "",
   password: "",
   confirmPassword: "",
@@ -39,17 +38,16 @@ export function RegisterForm() {
     event.preventDefault();
     setError(null);
 
-    const username = form.username.trim();
-    const email = form.email?.trim() ?? "";
+    const email = form.email.trim();
     const password = form.password;
 
-    if (!username) {
-      setError("Username is required.");
+    if (!email) {
+      setError("Email is required.");
       return;
     }
 
-    if (!/^[\w.@+-]+$/.test(username)) {
-      setError("Username may only contain letters, digits, and @/./+/-/_.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Enter a valid email address.");
       return;
     }
 
@@ -67,8 +65,7 @@ export function RegisterForm() {
       void (async () => {
         try {
           await authService.register({
-            username,
-            ...(email ? { email } : {}),
+            email,
             password,
           });
           router.replace("/login");
@@ -124,14 +121,9 @@ export function RegisterForm() {
           <form className="mt-10 space-y-5" onSubmit={handleSubmit}>
             <Input
               required
-              label="Username"
-              type="text"
-              value={form.username}
-              onChange={(event) => handleChange("username", event.target.value)}
-            />
-            <Input
-              label="Email (optional)"
+              label="Email"
               type="email"
+              autoComplete="email"
               value={form.email}
               onChange={(event) => handleChange("email", event.target.value)}
             />
@@ -139,6 +131,7 @@ export function RegisterForm() {
               required
               label="Password"
               type="password"
+              autoComplete="new-password"
               value={form.password}
               onChange={(event) => handleChange("password", event.target.value)}
             />
@@ -146,6 +139,7 @@ export function RegisterForm() {
               required
               label="Confirm password"
               type="password"
+              autoComplete="new-password"
               value={form.confirmPassword}
               onChange={(event) => handleChange("confirmPassword", event.target.value)}
             />

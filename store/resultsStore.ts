@@ -5,6 +5,7 @@ export interface ResultParameter {
   key: string;
   label: string;
   value: string;
+  locked?: boolean;
 }
 
 export interface StoredCompatibilityResult {

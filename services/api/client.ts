@@ -1,7 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { authStore } from "@/store/authStore";
 
-const API_BASE_URL = "http://localhost/api";
+// const API_BASE_URL = "http://localhost/api";
+const API_BASE_URL = "http://localhost:8001/api";
 
 const attachAuthorizationHeader = (config: InternalAxiosRequestConfig) => {
   const token = authStore.getState().token;

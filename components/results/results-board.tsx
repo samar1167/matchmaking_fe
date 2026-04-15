@@ -66,6 +66,39 @@ const isLockedParameter = (key: string, parameters: PlanParameters) => {
   return Boolean(fallback?.paid && !fallback.free);
 };
 
+const shouldBlurParameter = (
+  parameter: StoredCompatibilityResult["parameters"][number],
+  parameters: PlanParameters,
+) => {
+  if (typeof parameter.locked === "boolean") {
+    return parameter.locked;
+  }
+
+  return isLockedParameter(parameter.key, parameters);
+};
+
+const LockedParameterValue = ({
+  value,
+  cta,
+}: {
+  value: string;
+  cta: string;
+}) => (
+  <div className="relative isolate overflow-hidden rounded-xl border border-[rgba(49,36,87,0.08)] bg-[linear-gradient(135deg,rgba(28,20,52,0.94)_0%,rgba(41,31,74,0.96)_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(210,167,75,0.22),transparent_48%)]" />
+    <span className="block select-none blur-md opacity-80">{value}</span>
+    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,7,19,0.08)_0%,rgba(10,7,19,0.68)_100%)]" />
+    <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl border border-[rgba(210,167,75,0.24)] bg-[rgba(16,12,30,0.78)] px-3 py-2 text-center shadow-[0_10px_30px_rgba(6,4,13,0.32)] backdrop-blur-sm">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[rgba(210,167,75,0.98)]">
+        Locked Insight
+      </p>
+      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/88">
+        {cta}
+      </p>
+    </div>
+  </div>
+);
+
 export function ResultsBoard({
   credits = 0,
   description,
@@ -187,7 +220,7 @@ export function ResultsBoard({
                     <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {result.parameters.length > 0 ? (
                         result.parameters.map((parameter) => {
-                          const locked = isLockedParameter(parameter.key, parameters);
+                          const locked = shouldBlurParameter(parameter, parameters);
 
                           return (
                             <div
@@ -199,15 +232,10 @@ export function ResultsBoard({
                               </dt>
                               <dd className="mt-3 min-h-12 text-sm font-medium text-foreground">
                                 {locked ? (
-                                  <div className="relative overflow-hidden rounded-xl border border-[rgba(49,36,87,0.08)] bg-[linear-gradient(135deg,rgba(28,20,52,0.92)_0%,rgba(41,31,74,0.94)_100%)] px-3 py-3 text-white">
-                                    <span className="block blur-md opacity-85 select-none">
-                                      {parameter.value}
-                                    </span>
-                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,7,19,0.05)_0%,rgba(10,7,19,0.52)_100%)]" />
-                                    <span className="absolute inset-0 flex items-center justify-center px-3 text-center text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgba(210,167,75,0.98)]">
-                                      Unlock Full Compatibility
-                                    </span>
-                                  </div>
+                                  <LockedParameterValue
+                                    cta="Unlock Full Compatibility"
+                                    value={parameter.value}
+                                  />
                                 ) : (
                                   parameter.value
                                 )}

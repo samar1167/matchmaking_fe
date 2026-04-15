@@ -14,17 +14,25 @@ export function usePlanAccess() {
 
   useEffect(() => {
     void (async () => {
+      setIsLoading(true);
+
       try {
-        const [planMe, parameterResponse] = await Promise.all([
+        const [planMeResult, parameterResult] = await Promise.allSettled([
           planService.getCurrent(),
           planService.getParameters(),
         ]);
 
-        setCredits(planMe.credits ?? 0);
-        setParameters(normalizePlanParameters(parameterResponse.parameters));
-      } catch {
-        setCredits(0);
-        setParameters({});
+        if (planMeResult.status === "fulfilled") {
+          setCredits(planMeResult.value.credits ?? 0);
+        } else {
+          setCredits(0);
+        }
+
+        if (parameterResult.status === "fulfilled") {
+          setParameters(normalizePlanParameters(parameterResult.value.parameters));
+        } else {
+          setParameters({});
+        }
       } finally {
         setIsLoading(false);
       }

@@ -4,6 +4,9 @@ import type { AuthUser } from "@/types/auth";
 export interface UserProfile {
   id: number;
   user?: AuthUser;
+  first_name?: string;
+  last_name?: string;
+  profile_picture?: string | null;
   date_of_birth: string;
   time_of_birth: string;
   place_of_birth: string;
@@ -15,6 +18,10 @@ export interface UserProfile {
 }
 
 export interface CreateProfileRequest {
+  first_name?: string;
+  last_name?: string;
+  profile_picture?: File | null;
+  remove_profile_picture?: boolean;
   date_of_birth: string;
   time_of_birth: string;
   place_of_birth: string;

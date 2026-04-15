@@ -11,7 +11,7 @@ import { useAuthStore } from "@/store/authStore";
 import type { LoginRequest } from "@/types/auth";
 
 const initialValues: LoginRequest = {
-  username: "",
+  email: "",
   password: "",
 };
 
@@ -71,15 +71,17 @@ export function LoginForm() {
           <form className="mt-10 space-y-5" onSubmit={handleSubmit}>
             <Input
               required
-              label="Username"
-              type="text"
-              value={form.username}
-              onChange={(event) => handleChange("username", event.target.value)}
+              label="Email"
+              type="email"
+              autoComplete="email"
+              value={form.email}
+              onChange={(event) => handleChange("email", event.target.value)}
             />
             <Input
               required
               label="Password"
               type="password"
+              autoComplete="current-password"
               value={form.password}
               onChange={(event) => handleChange("password", event.target.value)}
             />

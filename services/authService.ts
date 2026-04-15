@@ -12,12 +12,20 @@ import type {
 
 export const authService = {
   async login(payload: LoginRequest): Promise<LoginResponse> {
-    const { data } = await apiClient.post<LoginResponse>("/auth/login/", payload);
+    const { data } = await apiClient.post<LoginResponse>("/auth/login/", {
+      email: payload.email,
+      username: payload.email,
+      password: payload.password,
+    });
     return data;
   },
 
   async register(payload: RegisterRequest): Promise<RegisterResponse> {
-    const { data } = await apiClient.post<RegisterResponse>("/auth/register/", payload);
+    const { data } = await apiClient.post<RegisterResponse>("/auth/register/", {
+      email: payload.email,
+      username: payload.email,
+      password: payload.password,
+    });
     return data;
   },
 

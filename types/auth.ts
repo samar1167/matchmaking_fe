@@ -4,10 +4,13 @@ export interface AuthUser {
   id: number;
   username: string;
   email?: string;
+  first_name?: string;
+  last_name?: string;
+  profile_picture?: string | null;
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -25,8 +28,7 @@ export interface RefreshTokenResponse {
 }
 
 export interface RegisterRequest {
-  username: string;
-  email?: string;
+  email: string;
   password: string;
 }
 
