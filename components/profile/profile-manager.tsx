@@ -1,6 +1,7 @@
 "use client";
 
 import { isAxiosError } from "axios";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppScaffold } from "@/components/layout/app-scaffold";
 import { Button } from "@/components/ui/button";
@@ -8,12 +9,11 @@ import {
   AlertMessage,
   BodyText,
   EmptyState,
-  InfoTile,
-  MetricTile,
   designSystem,
 } from "@/components/ui/design-system";
 import { Input } from "@/components/ui/input";
 import { SectionCard } from "@/components/ui/section-card";
+import { authService } from "@/services/authService";
 import { profileService } from "@/services/profileService";
 import { useAuthStore } from "@/store/authStore";
 import type { ApiErrorResponse } from "@/types/common";
@@ -37,6 +37,12 @@ interface ProfileFormValues {
 
 type ValidationErrors = Partial<Record<keyof ProfileFormValues, string>>;
 
+interface ChangePasswordValues {
+  old_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
 const emptyValues: ProfileFormValues = {
   first_name: "",
   last_name: "",
@@ -46,6 +52,12 @@ const emptyValues: ProfileFormValues = {
   latitude: "",
   longitude: "",
   timezone: "",
+};
+
+const emptyChangePasswordValues: ChangePasswordValues = {
+  old_password: "",
+  new_password: "",
+  confirm_password: "",
 };
 
 const mapProfileToFormValues = (profile: UserProfile): ProfileFormValues => ({
@@ -111,8 +123,46 @@ const buildProfilePayload = (
   timezone: values.timezone.trim() || undefined,
 });
 
+const extractApiErrorMessage = (error: unknown, fallback: string) => {
+  if (isAxiosError<ApiErrorResponse | Record<string, string[]>>(error)) {
+    const data = error.response?.data;
+
+    if (data && typeof data === "object") {
+      if ("message" in data && typeof data.message === "string") {
+        return data.message;
+      }
+
+      if ("error" in data && typeof data.error === "string") {
+        return data.error;
+      }
+
+      const fieldErrors = Object.values(data)
+        .flatMap((value) => (Array.isArray(value) ? value : []))
+        .filter((value): value is string => typeof value === "string");
+
+      if (fieldErrors.length > 0) {
+        return fieldErrors[0];
+      }
+    }
+  }
+
+  return fallback;
+};
+
+const extractActionMessage = (
+  response: { detail?: string; message?: string; meta?: { message?: string } } | undefined,
+  fallback: string,
+) => response?.detail || response?.message || response?.meta?.message || fallback;
+
+const displayValue = (value: string | null | undefined) => {
+  const normalized = value?.trim();
+  return normalized ? normalized : "Not set";
+};
+
 export function ProfileManager() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const clearSession = useAuthStore((state) => state.clearSession);
   const setUser = useAuthStore((state) => state.setUser);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [values, setValues] = useState<ProfileFormValues>(emptyValues);
@@ -124,6 +174,14 @@ export function ProfileManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [changePasswordValues, setChangePasswordValues] = useState<ChangePasswordValues>(
+    emptyChangePasswordValues,
+  );
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [activePanel, setActivePanel] = useState<"edit" | "password" | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -269,29 +327,58 @@ export function ProfileManager() {
       }
       setSuccessMessage(profile ? "Profile updated." : "Profile created.");
     } catch (error) {
-      if (isAxiosError<ApiErrorResponse | Record<string, string[]>>(error)) {
-        const data = error.response?.data;
-
-        if (data && typeof data === "object") {
-          if ("message" in data && typeof data.message === "string") {
-            setError(data.message);
-            return;
-          }
-
-          const fieldErrors = Object.values(data)
-            .flatMap((value) => (Array.isArray(value) ? value : []))
-            .filter((value): value is string => typeof value === "string");
-
-          if (fieldErrors.length > 0) {
-            setError(fieldErrors[0]);
-            return;
-          }
-        }
-      }
-
-      setError("Unable to save your profile right now.");
+      setError(extractApiErrorMessage(error, "Unable to save your profile right now."));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPasswordError(null);
+    setPasswordMessage(null);
+
+    if (!changePasswordValues.old_password) {
+      setPasswordError("Current password is required.");
+      return;
+    }
+
+    if (changePasswordValues.new_password.length < 8) {
+      setPasswordError("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (changePasswordValues.new_password !== changePasswordValues.confirm_password) {
+      setPasswordError("New password and confirmation must match.");
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+      const response = await authService.changePassword({
+        old_password: changePasswordValues.old_password,
+        new_password: changePasswordValues.new_password,
+      });
+
+      setChangePasswordValues(emptyChangePasswordValues);
+      setPasswordMessage(extractActionMessage(response, "Password updated."));
+      setActivePanel(null);
+    } catch (error) {
+      setPasswordError(extractApiErrorMessage(error, "Unable to change your password."));
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await authService.logout();
+    } catch {
+      clearSession();
+    } finally {
+      setIsLoggingOut(false);
+      router.replace("/login");
     }
   };
 
@@ -300,15 +387,71 @@ export function ProfileManager() {
       title="Profile"
       description="Create and maintain your own birth profile so compatibility runs always use the most accurate source data."
     >
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-8">
         <SectionCard
-          eyebrow="Birth Data"
-          title={profile ? "Update your profile" : "Create your profile"}
-          description="These fields power your saved identity for compatibility checks and future profile-driven flows."
+          eyebrow="Profile"
+          title={
+            activePanel === "edit"
+              ? profile
+                ? "Edit your profile"
+                : "Create your profile"
+              : activePanel === "password"
+                ? "Password access"
+                : profile
+                  ? "Your profile"
+                  : "Create your profile"
+          }
+          description={
+            activePanel === "edit"
+              ? "Update your saved profile details only when needed."
+              : activePanel === "password"
+                ? "Update your password only when needed."
+                : "Review your saved details here. Open an action only when you want to change something."
+          }
+          actions={
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={activePanel === "edit"}
+                onClick={() => {
+                  setActivePanel("edit");
+                  setError(null);
+                  setSuccessMessage(null);
+                  setPasswordError(null);
+                  setPasswordMessage(null);
+                }}
+              >
+                Edit profile
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={activePanel === "password"}
+                onClick={() => {
+                  setActivePanel("password");
+                  setPasswordError(null);
+                  setPasswordMessage(null);
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
+              >
+                Change password
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                disabled={isLoggingOut}
+                onClick={handleLogout}
+              >
+                {isLoggingOut ? "Signing out..." : "Logout"}
+              </Button>
+            </div>
+          }
         >
           {isLoading ? (
             <EmptyState>Loading your saved profile...</EmptyState>
-          ) : (
+          ) : activePanel === "edit" ? (
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="grid gap-5 md:grid-cols-2">
@@ -436,67 +579,210 @@ export function ProfileManager() {
                 >
                   Reset fields
                 </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    handleReset();
+                    setActivePanel(null);
+                  }}
+                >
+                  Close
+                </Button>
               </div>
             </form>
+          ) : activePanel === "password" ? (
+            <div className={`${designSystem.inset} space-y-5 p-5`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-primary">Change password</p>
+                  <BodyText className="mt-2">
+                    Use your current password, then choose a new one with at least eight characters.
+                  </BodyText>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setActivePanel(null);
+                    setChangePasswordValues(emptyChangePasswordValues);
+                    setPasswordError(null);
+                    setPasswordMessage(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+
+              <form className="space-y-4" onSubmit={handleChangePassword}>
+                <Input
+                  label="Current password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={changePasswordValues.old_password}
+                  onChange={(event) =>
+                    setChangePasswordValues((current) => ({
+                      ...current,
+                      old_password: event.target.value,
+                    }))
+                  }
+                />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="New password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={changePasswordValues.new_password}
+                    onChange={(event) =>
+                      setChangePasswordValues((current) => ({
+                        ...current,
+                        new_password: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Confirm new password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={changePasswordValues.confirm_password}
+                    onChange={(event) =>
+                      setChangePasswordValues((current) => ({
+                        ...current,
+                        confirm_password: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                {passwordError ? <AlertMessage>{passwordError}</AlertMessage> : null}
+                {passwordMessage ? (
+                  <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+                    {passwordMessage}
+                  </AlertMessage>
+                ) : null}
+
+                <div className="flex flex-wrap gap-3">
+                  <Button disabled={isChangingPassword} type="submit">
+                    {isChangingPassword ? "Updating..." : "Update password"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setChangePasswordValues(emptyChangePasswordValues);
+                      setPasswordError(null);
+                      setPasswordMessage(null);
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+                <div className={`${designSystem.inset} flex flex-col items-center gap-4 p-5`}>
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(49,36,87,0.12)] bg-white/80">
+                    {activeProfilePicture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt="Profile preview"
+                        className="h-full w-full object-cover"
+                        src={activeProfilePicture}
+                      />
+                    ) : (
+                      <span className="text-center text-xs font-semibold uppercase tracking-[0.24em] text-foreground/40">
+                        No Picture
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <p className="font-display text-3xl font-semibold text-primary">
+                      {displayName}
+                    </p>
+                    <BodyText className="mt-2">{accountLabel}</BodyText>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      First Name
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.first_name)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Last Name
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.last_name)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Date of Birth
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.date_of_birth)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Time of Birth
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.time_of_birth)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5 md:col-span-2`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Place of Birth
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.place_of_birth)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Latitude
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.latitude)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Longitude
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.longitude)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5 md:col-span-2`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Timezone
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayValue(values.timezone)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {error ? <AlertMessage>{error}</AlertMessage> : null}
+              {successMessage ? (
+                <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+                  {successMessage}
+                </AlertMessage>
+              ) : null}
+            </div>
           )}
         </SectionCard>
-
-        <div className="space-y-8">
-          <SectionCard
-            eyebrow="Account"
-            title="Profile status"
-            description="A compact view of what is currently connected to your account."
-          >
-            <div className="grid gap-4">
-              <MetricTile label="Account" value={accountLabel} className="min-h-[140px]" />
-              <MetricTile label="Name" value={displayName} className="min-h-[140px]" />
-              <MetricTile
-                label="Profile Mode"
-                value={profile ? "Saved" : "Missing"}
-                className="min-h-[140px]"
-              />
-              <MetricTile
-                label="Location Precision"
-                value={locationPrecision}
-                className="min-h-[140px]"
-              />
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            eyebrow="Notes"
-            title="What to include"
-            description="A few profile details matter more than the rest."
-          >
-            <div className={`${designSystem.inset} space-y-4 p-5`}>
-              <InfoTile>
-                <p className="text-sm font-medium text-primary">Name and picture</p>
-                <BodyText className="mt-2">
-                  Add your first name, last name, and a clear photo so your saved profile is easier
-                  to identify later.
-                </BodyText>
-              </InfoTile>
-              <InfoTile>
-                <p className="text-sm font-medium text-primary">Birth date and time</p>
-                <BodyText className="mt-2">
-                  Use the most exact values you have available. These are required.
-                </BodyText>
-              </InfoTile>
-              <InfoTile>
-                <p className="text-sm font-medium text-primary">Birth place</p>
-                <BodyText className="mt-2">
-                  City, state or region, and country give the backend better location context.
-                </BodyText>
-              </InfoTile>
-              <InfoTile>
-                <p className="text-sm font-medium text-primary">Coordinates and timezone</p>
-                <BodyText className="mt-2">
-                  These fields are optional, but they help when precise location data is known.
-                </BodyText>
-              </InfoTile>
-            </div>
-          </SectionCard>
-        </div>
       </div>
     </AppScaffold>
   );

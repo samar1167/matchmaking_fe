@@ -32,6 +32,29 @@ export interface RegisterRequest {
   password: string;
 }
 
+export interface ChangePasswordRequest {
+  old_password: string;
+  new_password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  new_password: string;
+}
+
+export interface VerifyEmailRequest {
+  token?: string;
+  key?: string;
+  code?: string;
+  uid?: string;
+  uidb64?: string;
+  email?: string;
+}
+
 export interface RegisterResponse {
   id: number;
   username: string;
@@ -41,5 +64,12 @@ export interface RegisterResponse {
 
 export interface LogoutResponse {
   success?: boolean;
+  meta?: ApiMeta;
+}
+
+export interface AuthActionResponse {
+  success?: boolean;
+  detail?: string;
+  message?: string;
   meta?: ApiMeta;
 }

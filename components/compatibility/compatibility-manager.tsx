@@ -76,9 +76,29 @@ export function CompatibilityManager() {
     );
   };
 
+  const getProfileDisplayName = (profile: UserProfile) => {
+    const firstName = profile.first_name ?? profile.user?.first_name ?? "";
+    const lastName = profile.last_name ?? profile.user?.last_name ?? "";
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    return fullName || profile.user?.username || `Profile #${profile.id}`;
+  };
+
   const getCompatibilityErrorMessage = (error: unknown) => {
-    if (isAxiosError<ApiErrorResponse | Record<string, string[]>>(error)) {
+    if (isAxiosError<ApiErrorResponse | string | string[] | Record<string, string[]>>(error)) {
       const data = error.response?.data;
+
+      if (typeof data === "string") {
+        return data;
+      }
+
+      if (Array.isArray(data)) {
+        const message = data.find((value): value is string => typeof value === "string");
+
+        if (message) {
+          return message;
+        }
+      }
 
       if (data && typeof data === "object") {
         if ("error" in data && typeof data.error === "string") {
@@ -87,6 +107,20 @@ export function CompatibilityManager() {
 
         if ("message" in data && typeof data.message === "string") {
           return data.message;
+        }
+
+        if ("detail" in data && typeof data.detail === "string") {
+          return data.detail;
+        }
+
+        if ("details" in data && data.details && typeof data.details === "object") {
+          const detailError = Object.values(data.details)
+            .flatMap((value) => (Array.isArray(value) ? value : []))
+            .find((value): value is string => typeof value === "string");
+
+          if (detailError) {
+            return detailError;
+          }
         }
 
         const fieldErrors = Object.entries(data)
@@ -178,7 +212,7 @@ export function CompatibilityManager() {
                             Own Profile
                           </p>
                           <p className="mt-3 font-display text-3xl font-semibold text-primary">
-                            Profile #{profile.id}
+                            {getProfileDisplayName(profile)}
                           </p>
                           <p className="mt-3 text-sm text-foreground/65">
                             {profile.date_of_birth} at {profile.time_of_birth}

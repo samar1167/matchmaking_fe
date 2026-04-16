@@ -5,7 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import type { ReactNode } from "react";
 
-const publicRoutes = new Set(["/", "/login", "/register"]);
+const publicRoutes = new Set([
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/auth/verify-email",
+]);
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -25,7 +33,15 @@ export function AuthGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (token && (pathname === "/login" || pathname === "/register")) {
+    if (
+      token &&
+      (pathname === "/login" ||
+        pathname === "/register" ||
+        pathname === "/forgot-password" ||
+        pathname === "/reset-password" ||
+        pathname === "/verify-email" ||
+        pathname === "/auth/verify-email")
+    ) {
       router.replace("/dashboard");
     }
   }, [hasHydrated, pathname, router, token]);

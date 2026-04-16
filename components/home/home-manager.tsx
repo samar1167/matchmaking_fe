@@ -1,5 +1,6 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -15,11 +16,82 @@ import { profileService } from "@/services/profileService";
 import { useAuthStore } from "@/store/authStore";
 import { usePlanStore } from "@/store/planStore";
 import { useResultsStore, type StoredCompatibilityResult } from "@/store/resultsStore";
+import type { ApiErrorResponse } from "@/types/common";
 import type { PrivatePerson } from "@/types/private-persons";
 import type { PlanParameters } from "@/types/plan";
 import type { UserProfile } from "@/types/profile";
 
 const purchaseOptions = [5, 15, 30];
+
+type ServerMessagePayload =
+  | ApiErrorResponse
+  | string
+  | string[]
+  | Record<string, string | string[] | Record<string, string[]>>;
+
+const getServerMessage = (payload: ServerMessagePayload | undefined) => {
+  if (!payload) {
+    return null;
+  }
+
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.find((value): value is string => typeof value === "string") || null;
+  }
+
+  if (typeof payload !== "object") {
+    return null;
+  }
+
+  if ("message" in payload && typeof payload.message === "string") {
+    return payload.message;
+  }
+
+  if ("detail" in payload && typeof payload.detail === "string") {
+    return payload.detail;
+  }
+
+  if ("error" in payload && typeof payload.error === "string") {
+    return payload.error;
+  }
+
+  if ("details" in payload && payload.details && typeof payload.details === "object") {
+    const detailError = Object.values(payload.details)
+      .flatMap((value) => (Array.isArray(value) ? value : []))
+      .find((value): value is string => typeof value === "string");
+
+    if (detailError) {
+      return detailError;
+    }
+  }
+
+  const fieldError = Object.values(payload)
+    .flatMap((value) => {
+      if (typeof value === "string") {
+        return [value];
+      }
+
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      return [];
+    })
+    .find((value): value is string => typeof value === "string");
+
+  return fieldError || null;
+};
+
+const extractActionErrorMessage = (error: unknown, fallback: string) => {
+  if (isAxiosError<ServerMessagePayload>(error)) {
+    return getServerMessage(error.response?.data) || fallback;
+  }
+
+  return fallback;
+};
 
 const formatTimestamp = (value?: string) => {
   if (!value) {
@@ -326,8 +398,10 @@ export function HomeManager() {
 
       setResults(normalizedResults);
       router.push("/results");
-    } catch {
-      setActionError("Compatibility check failed. Please try again.");
+    } catch (error) {
+      setActionError(
+        extractActionErrorMessage(error, "Compatibility check failed. Please try again."),
+      );
     } finally {
       setIsRunningCheck(false);
     }
