@@ -470,7 +470,7 @@ export function ProfileManager() {
                 </div>
 
                 <div className={`${designSystem.inset} flex flex-col items-center gap-4 p-5`}>
-                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(49,36,87,0.12)] bg-white/80">
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(144,18,20,0.12)] bg-[#fafafa]/80">
                     {activeProfilePicture ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -491,7 +491,7 @@ export function ProfileManager() {
                       </span>
                       <input
                         accept="image/*"
-                        className="block w-full text-sm text-foreground/72 file:mr-4 file:rounded-full file:border-0 file:bg-[rgba(49,36,87,0.08)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-[rgba(49,36,87,0.12)]"
+                        className="block w-full text-sm text-foreground/72 file:mr-4 file:rounded-full file:border-0 file:bg-[rgba(144,18,20,0.08)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-[rgba(144,18,20,0.12)]"
                         type="file"
                         onChange={handleProfilePictureChange}
                       />
@@ -562,7 +562,7 @@ export function ProfileManager() {
 
               {error ? <AlertMessage>{error}</AlertMessage> : null}
               {successMessage ? (
-                <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+                <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                   {successMessage}
                 </AlertMessage>
               ) : null}
@@ -657,7 +657,7 @@ export function ProfileManager() {
 
                 {passwordError ? <AlertMessage>{passwordError}</AlertMessage> : null}
                 {passwordMessage ? (
-                  <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+                  <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                     {passwordMessage}
                   </AlertMessage>
                 ) : null}
@@ -684,7 +684,7 @@ export function ProfileManager() {
             <div className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
                 <div className={`${designSystem.inset} flex flex-col items-center gap-4 p-5`}>
-                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(49,36,87,0.12)] bg-white/80">
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(144,18,20,0.12)] bg-[#fafafa]/80">
                     {activeProfilePicture ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -776,7 +776,7 @@ export function ProfileManager() {
 
               {error ? <AlertMessage>{error}</AlertMessage> : null}
               {successMessage ? (
-                <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+                <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                   {successMessage}
                 </AlertMessage>
               ) : null}

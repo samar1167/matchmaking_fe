@@ -201,7 +201,7 @@ export function ResetPasswordForm() {
 
             {error ? <AlertMessage>{error}</AlertMessage> : null}
             {message ? (
-              <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+              <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                 {message}
               </AlertMessage>
             ) : null}
@@ -221,7 +221,7 @@ export function ResetPasswordForm() {
                 Please login with your new password.
               </p>
               <Link
-                className="inline-flex w-full items-center justify-center rounded-full border border-[#22163a] bg-[linear-gradient(135deg,#3d2d6d_0%,#24173f_100%)] px-5 py-3.5 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_16px_34px_rgba(36,23,63,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_44px_rgba(36,23,63,0.3)]"
+                className="inline-flex w-full items-center justify-center rounded-full border border-[#7f533e] bg-[linear-gradient(135deg,#a22e34_0%,#901214_100%)] px-5 py-3.5 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_16px_34px_rgba(144,18,20,0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_44px_rgba(144,18,20,0.28)]"
                 href="/login"
               >
                 Go to login

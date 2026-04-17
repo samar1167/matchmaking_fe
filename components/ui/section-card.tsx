@@ -16,8 +16,8 @@ export function SectionCard({
   title,
 }: SectionCardProps) {
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-[rgba(49,36,87,0.1)] bg-[linear-gradient(180deg,rgba(255,251,245,0.92)_0%,rgba(255,248,240,0.78)_100%)] p-6 shadow-[0_28px_70px_rgba(29,18,55,0.1)] backdrop-blur-xl sm:p-8">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(210,167,75,0.7),transparent)]" />
+    <section className="relative overflow-hidden rounded-[2rem] border border-[rgba(144,18,20,0.1)] bg-[linear-gradient(180deg,rgba(250,250,250,0.94)_0%,rgba(245,213,200,0.72)_100%)] p-6 shadow-[0_28px_70px_rgba(12,13,10,0.1)] backdrop-blur-xl sm:p-8">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(192,119,113,0.74),transparent)]" />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           {eyebrow ? (

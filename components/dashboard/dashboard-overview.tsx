@@ -56,20 +56,20 @@ const statusTone = (credits: number) => {
   if (credits <= 0) {
     return {
       label: "Needs credits",
-      className: "border-[#e4b3c0] bg-[#fff0f4] text-[#9d2047]",
+      className: "border-[#eabfb9] bg-[#f5d5c8] text-[#901214]",
     };
   }
 
   if (credits <= 2) {
     return {
       label: "Low balance",
-      className: "border-[rgba(210,167,75,0.28)] bg-[rgba(255,247,230,0.9)] text-[#8d6410]",
+      className: "border-[rgba(192,119,113,0.28)] bg-[rgba(245,213,200,0.9)] text-[#7f533e]",
     };
   }
 
   return {
     label: "Ready to match",
-    className: "border-[#bfdac6] bg-[#effaf1] text-[#23653b]",
+    className: "border-[#eabfb9] bg-[#fafafa] text-[#7f533e]",
   };
 };
 
@@ -458,7 +458,7 @@ export function DashboardOverview() {
               </div>
 
               {purchaseMessage ? (
-                <AlertMessage className="mt-4 border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+                <AlertMessage className="mt-4 border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                   {purchaseMessage}
                 </AlertMessage>
               ) : null}

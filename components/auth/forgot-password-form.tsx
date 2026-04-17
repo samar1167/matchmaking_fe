@@ -113,7 +113,7 @@ export function ForgotPasswordForm() {
 
             {error ? <AlertMessage>{error}</AlertMessage> : null}
             {message ? (
-              <AlertMessage className="border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]">
+              <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                 {message}
               </AlertMessage>
             ) : null}

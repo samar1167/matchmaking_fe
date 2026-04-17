@@ -135,7 +135,7 @@ export function PrivatePersonsManager() {
                   editingId === privatePerson.id ? (
                     <article
                       key={privatePerson.id}
-                      className={`${designSystem.surface} border-[rgba(210,167,75,0.28)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(255,249,240,0.82)_100%)] p-6 shadow-[0_18px_40px_rgba(29,18,55,0.09)]`}
+                      className={`${designSystem.surface} border-[rgba(192,119,113,0.28)] bg-[linear-gradient(180deg,rgba(250,250,250,0.92)_0%,rgba(245,213,200,0.82)_100%)] p-6 shadow-[0_18px_40px_rgba(12,13,10,0.09)]`}
                     >
                       <div className="mb-5">
                         <p className={designSystem.eyebrow}>Edit Mode</p>

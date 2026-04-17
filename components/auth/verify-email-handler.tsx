@@ -16,7 +16,7 @@ type ServerMessagePayload =
   | string[]
   | Record<string, string | string[] | Record<string, string[]>>;
 
-const successAlertClass = "border-[#bcdcc8] bg-[#eefbf1] text-[#1e6b39]";
+const successAlertClass = "border-[#eabfb9] bg-[#fafafa] text-[#7f533e]";
 const verificationRequests = new Map<string, Promise<AuthActionResponse>>();
 
 const getServerMessage = (payload: ServerMessagePayload | undefined) => {
@@ -223,7 +223,7 @@ export function VerifyEmailHandler() {
 
       <div className="mt-10 space-y-5">
         {isVerifying ? (
-          <AlertMessage className="border-[rgba(49,36,87,0.14)] bg-white/70 text-foreground/70">
+          <AlertMessage className="border-[rgba(144,18,20,0.14)] bg-[#fafafa]/70 text-foreground/70">
             Verifying your email...
           </AlertMessage>
         ) : null}
@@ -234,7 +234,7 @@ export function VerifyEmailHandler() {
 
         {message ? (
           <Link
-            className="inline-flex w-full items-center justify-center rounded-full border border-[#22163a] bg-[linear-gradient(135deg,#3d2d6d_0%,#24173f_100%)] px-5 py-3.5 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_16px_34px_rgba(36,23,63,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_44px_rgba(36,23,63,0.3)]"
+            className="inline-flex w-full items-center justify-center rounded-full border border-[#7f533e] bg-[linear-gradient(135deg,#a22e34_0%,#901214_100%)] px-5 py-3.5 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_16px_34px_rgba(144,18,20,0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_44px_rgba(144,18,20,0.28)]"
             href="/login"
           >
             Go to login

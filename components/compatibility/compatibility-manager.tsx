@@ -204,7 +204,7 @@ export function CompatibilityManager() {
                           onClick={() => setSelectedProfileId(String(profile.id))}
                         >
                           <div
-                            className={`absolute inset-y-0 left-0 w-1 rounded-r-full bg-[linear-gradient(180deg,#d2a74b_0%,#7f68cc_100%)] transition ${
+                            className={`absolute inset-y-0 left-0 w-1 rounded-r-full bg-[linear-gradient(180deg,#c07771_0%,#901214_100%)] transition ${
                               isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                             }`}
                           />

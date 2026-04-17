@@ -49,7 +49,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   if (!hasHydrated) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="rounded-full border border-[rgba(49,36,87,0.12)] bg-white/70 px-5 py-3 text-sm font-medium text-foreground/70 shadow-[0_14px_32px_rgba(29,18,55,0.08)] backdrop-blur-xl">
+        <div className="rounded-full border border-[rgba(144,18,20,0.12)] bg-[#fafafa]/70 px-5 py-3 text-sm font-medium text-foreground/70 shadow-[0_14px_32px_rgba(12,13,10,0.08)] backdrop-blur-xl">
           Restoring session...
         </div>
       </div>

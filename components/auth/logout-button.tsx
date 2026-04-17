@@ -25,7 +25,7 @@ export function LogoutButton() {
 
   return (
     <Button
-      className="border-white/12 bg-white/8 text-white hover:border-[rgba(210,167,75,0.64)] hover:bg-white/12 hover:text-white"
+      className="border-white/12 bg-white/8 text-white hover:border-[rgba(245,213,200,0.7)] hover:bg-white/12 hover:text-white"
       disabled={isPending}
       onClick={handleLogout}
       variant="secondary"

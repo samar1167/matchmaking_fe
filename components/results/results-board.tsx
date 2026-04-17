@@ -44,7 +44,7 @@ const scoreRingStyle = (score: number) => {
   const degrees = (clampedScore / 100) * 360;
 
   return {
-    background: `conic-gradient(#d2a74b ${degrees}deg, rgba(49,36,87,0.12) 0deg)`,
+    background: `conic-gradient(#c07771 ${degrees}deg, rgba(144,18,20,0.12) 0deg)`,
   };
 };
 
@@ -84,15 +84,15 @@ const LockedParameterValue = ({
   value: string;
   cta: string;
 }) => (
-  <div className="relative isolate overflow-hidden rounded-xl border border-[rgba(49,36,87,0.08)] bg-[linear-gradient(135deg,rgba(28,20,52,0.94)_0%,rgba(41,31,74,0.96)_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(210,167,75,0.22),transparent_48%)]" />
+  <div className="relative isolate overflow-hidden rounded-xl border border-[rgba(144,18,20,0.12)] bg-[linear-gradient(135deg,rgba(144,18,20,0.94)_0%,rgba(127,83,62,0.96)_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,213,200,0.24),transparent_48%)]" />
     <span className="block select-none blur-md opacity-80">{value}</span>
-    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,7,19,0.08)_0%,rgba(10,7,19,0.68)_100%)]" />
-    <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl border border-[rgba(210,167,75,0.24)] bg-[rgba(16,12,30,0.78)] px-3 py-2 text-center shadow-[0_10px_30px_rgba(6,4,13,0.32)] backdrop-blur-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[rgba(210,167,75,0.98)]">
+    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,10,0.08)_0%,rgba(12,13,10,0.6)_100%)]" />
+    <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl border border-[rgba(245,213,200,0.28)] bg-[rgba(12,13,10,0.72)] px-3 py-2 text-center shadow-[0_10px_30px_rgba(12,13,10,0.28)] backdrop-blur-sm">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[rgba(245,213,200,0.98)]">
         Locked Insight
       </p>
-      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/88">
+      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/90">
         {cta}
       </p>
     </div>
@@ -172,15 +172,15 @@ export function ResultsBoard({
                 {group.items.map((result) => (
                   <div
                     key={result.id}
-                    className="rounded-[1.65rem] border border-[rgba(49,36,87,0.08)] bg-[rgba(255,250,242,0.86)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)]"
+                    className="rounded-[1.65rem] border border-[rgba(144,18,20,0.08)] bg-[rgba(250,250,250,0.86)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)]"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center gap-4">
                         <div
-                          className="grid h-20 w-20 place-items-center rounded-full p-[6px] shadow-[0_16px_34px_rgba(36,23,63,0.14)]"
+                          className="grid h-20 w-20 place-items-center rounded-full p-[6px] shadow-[0_16px_34px_rgba(144,18,20,0.14)]"
                           style={scoreRingStyle(result.score)}
                         >
-                          <div className="grid h-full w-full place-items-center rounded-full bg-[rgba(255,250,242,0.96)]">
+                          <div className="grid h-full w-full place-items-center rounded-full bg-[rgba(250,250,250,0.96)]">
                             <span className="font-display text-3xl font-semibold text-primary">
                               {Math.round(result.score)}
                             </span>
@@ -190,9 +190,9 @@ export function ResultsBoard({
                           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">
                             Compatibility Score
                           </p>
-                          <p className="mt-2 h-2.5 w-40 overflow-hidden rounded-full bg-[rgba(49,36,87,0.12)]">
+                          <p className="mt-2 h-2.5 w-40 overflow-hidden rounded-full bg-[rgba(144,18,20,0.12)]">
                             <span
-                              className="block h-full rounded-full bg-[linear-gradient(90deg,#d2a74b_0%,#6d57b6_100%)]"
+                              className="block h-full rounded-full bg-[linear-gradient(90deg,#c07771_0%,#901214_100%)]"
                               style={{ width: `${Math.max(6, Math.min(result.score, 100))}%` }}
                             />
                           </p>

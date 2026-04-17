@@ -8,26 +8,26 @@ export const designSystem = {
   eyebrow: "text-[11px] font-semibold uppercase tracking-[0.28em] text-accent",
   body: "text-sm leading-7 text-foreground/68",
   surface:
-    "rounded-[1.85rem] border border-[rgba(49,36,87,0.1)] bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(255,250,244,0.76)_100%)] p-5 shadow-[0_18px_40px_rgba(29,18,55,0.08)]",
+    "rounded-[1.85rem] border border-[rgba(144,18,20,0.1)] bg-[linear-gradient(180deg,rgba(250,250,250,0.92)_0%,rgba(245,213,200,0.68)_100%)] p-5 shadow-[0_18px_40px_rgba(12,13,10,0.08)]",
   surfaceInteractive:
-    "rounded-[1.85rem] border border-[rgba(49,36,87,0.1)] bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(255,250,244,0.76)_100%)] p-5 shadow-[0_18px_40px_rgba(29,18,55,0.08)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_26px_60px_rgba(29,18,55,0.12)]",
+    "rounded-[1.85rem] border border-[rgba(144,18,20,0.1)] bg-[linear-gradient(180deg,rgba(250,250,250,0.92)_0%,rgba(245,213,200,0.68)_100%)] p-5 shadow-[0_18px_40px_rgba(12,13,10,0.08)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_26px_60px_rgba(12,13,10,0.12)]",
   inset:
-    "rounded-[1.5rem] border border-[rgba(49,36,87,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.74)_0%,rgba(237,229,219,0.38)_100%)]",
-  tile: "rounded-[1.4rem] border border-white/60 bg-[rgba(237,229,219,0.46)] p-4",
+    "rounded-[1.5rem] border border-[rgba(144,18,20,0.08)] bg-[linear-gradient(180deg,rgba(250,250,250,0.74)_0%,rgba(234,191,185,0.38)_100%)]",
+  tile: "rounded-[1.4rem] border border-white/60 bg-[rgba(234,191,185,0.46)] p-4",
   selectedCard:
-    "border-accent bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(255,248,239,0.85)_100%)] shadow-[0_18px_40px_rgba(29,18,55,0.12)]",
+    "border-accent bg-[linear-gradient(180deg,rgba(250,250,250,0.96)_0%,rgba(245,213,200,0.85)_100%)] shadow-[0_18px_40px_rgba(12,13,10,0.12)]",
   unselectedCard:
-    "border-[rgba(49,36,87,0.08)] bg-white/70 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_18px_40px_rgba(29,18,55,0.08)]",
+    "border-[rgba(144,18,20,0.08)] bg-[#fafafa]/70 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_18px_40px_rgba(12,13,10,0.08)]",
   emptyState:
-    "rounded-[1.75rem] border border-dashed border-[rgba(49,36,87,0.12)] bg-white/60 p-8 text-sm leading-6 text-foreground/60",
+    "rounded-[1.75rem] border border-dashed border-[rgba(144,18,20,0.12)] bg-[#fafafa]/64 p-8 text-sm leading-6 text-foreground/60",
   alert:
-    "rounded-[1.35rem] border border-[#e5c0cc] bg-[#fff1f4] px-4 py-3 text-sm text-[#a1294b]",
+    "rounded-[1.35rem] border border-[#eabfb9] bg-[#f5d5c8] px-4 py-3 text-sm text-[#901214]",
   hero:
-    "relative overflow-hidden rounded-[2.25rem] border border-[rgba(49,36,87,0.12)] bg-[linear-gradient(135deg,rgba(31,23,60,0.96)_0%,rgba(54,40,98,0.92)_58%,rgba(29,22,55,0.95)_100%)] text-white shadow-[0_35px_90px_rgba(29,18,55,0.22)]",
+    "relative overflow-hidden rounded-[2.25rem] border border-[rgba(144,18,20,0.14)] bg-[linear-gradient(135deg,rgba(144,18,20,0.96)_0%,rgba(162,46,52,0.92)_58%,rgba(127,83,62,0.95)_100%)] text-white shadow-[0_35px_90px_rgba(12,13,10,0.22)]",
   authFrame:
-    "grid w-full max-w-5xl overflow-hidden rounded-[2.4rem] border border-[rgba(49,36,87,0.1)] bg-[rgba(255,251,245,0.86)] shadow-[0_35px_90px_rgba(29,18,55,0.16)] backdrop-blur-xl",
+    "grid w-full max-w-5xl overflow-hidden rounded-[2.4rem] border border-[rgba(144,18,20,0.1)] bg-[rgba(250,250,250,0.88)] shadow-[0_35px_90px_rgba(12,13,10,0.16)] backdrop-blur-xl",
   authPanel:
-    "relative overflow-hidden bg-[linear-gradient(160deg,#24173f_0%,#342660_52%,#1d1637_100%)] p-10 text-white",
+    "relative overflow-hidden bg-[linear-gradient(160deg,#901214_0%,#a22e34_52%,#7f533e_100%)] p-10 text-white",
 } as const;
 
 export function MetricTile({
@@ -115,8 +115,8 @@ export function ActionLink({
       className={cn(
         "inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium transition",
         variant === "primary"
-          ? "bg-foreground text-white hover:bg-black"
-          : "border border-black/10 bg-white px-4 py-3 text-foreground hover:border-accent hover:text-accent",
+          ? "bg-primary text-white hover:bg-[#961116]"
+          : "border border-black/10 bg-[#fafafa] px-4 py-3 text-foreground hover:border-accent hover:text-accent",
         className,
       )}
       {...props}
@@ -164,9 +164,9 @@ export function AuthHero({
 }) {
   return (
     <div className={cn(designSystem.authPanel, "hidden lg:block", className)}>
-      <div className="absolute left-0 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(210,167,75,0.28),transparent_70%)]" />
+      <div className="absolute left-0 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(234,191,185,0.32),transparent_70%)]" />
       <div className="absolute bottom-0 right-0 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.08),transparent_70%)]" />
-      <p className="relative text-[11px] font-semibold uppercase tracking-[0.34em] text-[rgba(210,167,75,0.94)]">
+      <p className="relative text-[11px] font-semibold uppercase tracking-[0.34em] text-[rgba(245,213,200,0.94)]">
         {eyebrow}
       </p>
       <h2 className="relative mt-8 max-w-sm font-display text-6xl font-semibold leading-none tracking-tight">
