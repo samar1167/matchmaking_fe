@@ -8,7 +8,7 @@ import type {
 } from "@/types/profile";
 
 const isUserProfile = (value: unknown): value is UserProfile =>
-  typeof value === "object" && value !== null && "date_of_birth" in value && "time_of_birth" in value;
+  typeof value === "object" && value !== null && "id" in value;
 
 const normalizeProfileListResponse = (payload: unknown): ProfileListResponse => {
   if (payload && typeof payload === "object" && "results" in payload) {

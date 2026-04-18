@@ -2,7 +2,7 @@
 
 import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppScaffold } from "@/components/layout/app-scaffold";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,12 +11,18 @@ import {
   EmptyState,
   designSystem,
 } from "@/components/ui/design-system";
-import { Input } from "@/components/ui/input";
+import { GooglePlaceInput } from "@/components/ui/google-place-input";
+import { Input, SelectInput } from "@/components/ui/input";
 import { SectionCard } from "@/components/ui/section-card";
 import { authService } from "@/services/authService";
+import { matchPreferencesService } from "@/services/matchPreferencesService";
 import { profileService } from "@/services/profileService";
 import { useAuthStore } from "@/store/authStore";
 import type { ApiErrorResponse } from "@/types/common";
+import type {
+  SaveMatchPreferenceRequest,
+  UserMatchPreference,
+} from "@/types/match-preferences";
 import type {
   CreateProfileRequest,
   ProfileResponse,
@@ -43,6 +49,22 @@ interface ChangePasswordValues {
   confirm_password: string;
 }
 
+interface MatchPreferenceFormValues {
+  preferred_gender: string;
+  preferred_age_min: string;
+  preferred_age_max: string;
+  preferred_distance_km: string;
+  preferred_relationship_intent: string;
+  preferred_marital_status: string;
+  modern_methods: string;
+  karmic_glue: string;
+  ancient_methods: string;
+  deal_maker: string;
+  sizzle: string;
+}
+
+type MatchPreferenceValidationErrors = Partial<Record<keyof MatchPreferenceFormValues, string>>;
+
 const emptyValues: ProfileFormValues = {
   first_name: "",
   last_name: "",
@@ -59,6 +81,45 @@ const emptyChangePasswordValues: ChangePasswordValues = {
   new_password: "",
   confirm_password: "",
 };
+
+const emptyMatchPreferenceValues: MatchPreferenceFormValues = {
+  preferred_gender: "",
+  preferred_age_min: "",
+  preferred_age_max: "",
+  preferred_distance_km: "",
+  preferred_relationship_intent: "",
+  preferred_marital_status: "",
+  modern_methods: "",
+  karmic_glue: "",
+  ancient_methods: "",
+  deal_maker: "",
+  sizzle: "",
+};
+
+const genderChoices = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "other", label: "Other" },
+  { value: "any", label: "Any" },
+];
+
+const relationshipIntentChoices = [
+  { value: "marriage", label: "Marriage" },
+  { value: "long_term", label: "Long-term relationship" },
+  { value: "casual", label: "Casual dating" },
+  { value: "friendship", label: "Friendship" },
+  { value: "open_to_explore", label: "Open to explore" },
+];
+
+const maritalStatusChoices = [
+  { value: "never_married", label: "Never married" },
+  { value: "divorced", label: "Divorced" },
+  { value: "widowed", label: "Widowed" },
+  { value: "separated", label: "Separated" },
+  { value: "annulled", label: "Annulled" },
+  { value: "any", label: "Any" },
+];
 
 const mapProfileToFormValues = (profile: UserProfile): ProfileFormValues => ({
   first_name: profile.first_name ?? profile.user?.first_name ?? "",
@@ -77,22 +138,31 @@ const mapProfileToFormValues = (profile: UserProfile): ProfileFormValues => ({
   timezone: profile.timezone ?? "",
 });
 
+const numberToFormValue = (value: number | null | undefined) =>
+  typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+
+const mapMatchPreferenceToFormValues = (
+  preference: UserMatchPreference | null,
+): MatchPreferenceFormValues => ({
+  preferred_gender: preference?.preferred_gender ?? "",
+  preferred_age_min: numberToFormValue(preference?.preferred_age_min),
+  preferred_age_max: numberToFormValue(preference?.preferred_age_max),
+  preferred_distance_km: numberToFormValue(preference?.preferred_distance_km),
+  preferred_relationship_intent: preference?.preferred_relationship_intent ?? "",
+  preferred_marital_status: preference?.preferred_marital_status ?? "",
+  modern_methods: numberToFormValue(preference?.modern_methods),
+  karmic_glue: numberToFormValue(preference?.karmic_glue),
+  ancient_methods: numberToFormValue(preference?.ancient_methods),
+  deal_maker: numberToFormValue(preference?.deal_maker),
+  sizzle: numberToFormValue(preference?.sizzle),
+});
+
 const validateProfileForm = (values: ProfileFormValues): ValidationErrors => {
   const errors: ValidationErrors = {};
   const today = new Date().toISOString().split("T")[0];
 
-  if (!values.date_of_birth) {
-    errors.date_of_birth = "Date of birth is required.";
-  } else if (values.date_of_birth > today) {
+  if (values.date_of_birth && values.date_of_birth > today) {
     errors.date_of_birth = "Date of birth cannot be in the future.";
-  }
-
-  if (!values.time_of_birth) {
-    errors.time_of_birth = "Time of birth is required.";
-  }
-
-  if (!values.place_of_birth.trim()) {
-    errors.place_of_birth = "Place of birth is required.";
   }
 
   if (values.latitude && Number.isNaN(Number(values.latitude))) {
@@ -106,6 +176,49 @@ const validateProfileForm = (values: ProfileFormValues): ValidationErrors => {
   return errors;
 };
 
+const validateMatchPreferenceForm = (
+  values: MatchPreferenceFormValues,
+): MatchPreferenceValidationErrors => {
+  const errors: MatchPreferenceValidationErrors = {};
+  const numericFields: Array<keyof MatchPreferenceFormValues> = [
+    "preferred_age_min",
+    "preferred_age_max",
+    "preferred_distance_km",
+    "modern_methods",
+    "karmic_glue",
+    "ancient_methods",
+    "deal_maker",
+    "sizzle",
+  ];
+
+  numericFields.forEach((field) => {
+    if (values[field] && Number.isNaN(Number(values[field]))) {
+      errors[field] = "Enter a valid number.";
+    }
+  });
+
+  const ageMin = values.preferred_age_min ? Number(values.preferred_age_min) : null;
+  const ageMax = values.preferred_age_max ? Number(values.preferred_age_max) : null;
+
+  if (ageMin !== null && ageMin < 0) {
+    errors.preferred_age_min = "Minimum age cannot be negative.";
+  }
+
+  if (ageMax !== null && ageMax < 0) {
+    errors.preferred_age_max = "Maximum age cannot be negative.";
+  }
+
+  if (ageMin !== null && ageMax !== null && ageMin > ageMax) {
+    errors.preferred_age_max = "Maximum age must be greater than or equal to minimum age.";
+  }
+
+  if (values.preferred_distance_km && Number(values.preferred_distance_km) < 0) {
+    errors.preferred_distance_km = "Distance cannot be negative.";
+  }
+
+  return errors;
+};
+
 const buildProfilePayload = (
   values: ProfileFormValues,
   profilePicture: File | null,
@@ -113,19 +226,77 @@ const buildProfilePayload = (
 ): CreateProfileRequest | UpdateProfileRequest => ({
   first_name: values.first_name.trim() || undefined,
   last_name: values.last_name.trim() || undefined,
-  profile_picture: profilePicture,
+  profile_picture: profilePicture || undefined,
   remove_profile_picture: removeProfilePicture || undefined,
-  date_of_birth: values.date_of_birth,
-  time_of_birth: values.time_of_birth,
-  place_of_birth: values.place_of_birth.trim(),
-  latitude: values.latitude ? Number(values.latitude) : null,
-  longitude: values.longitude ? Number(values.longitude) : null,
+  date_of_birth: values.date_of_birth || undefined,
+  time_of_birth: values.time_of_birth || undefined,
+  place_of_birth: values.place_of_birth.trim() || undefined,
+  latitude: values.latitude ? Number(values.latitude) : undefined,
+  longitude: values.longitude ? Number(values.longitude) : undefined,
   timezone: values.timezone.trim() || undefined,
 });
 
+const optionalText = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const optionalNumber = (value: string) => (value ? Number(value) : undefined);
+
+const buildMatchPreferencePayload = (
+  values: MatchPreferenceFormValues,
+): SaveMatchPreferenceRequest => ({
+  preferred_gender: optionalText(values.preferred_gender),
+  preferred_age_min: optionalNumber(values.preferred_age_min),
+  preferred_age_max: optionalNumber(values.preferred_age_max),
+  preferred_distance_km: optionalNumber(values.preferred_distance_km),
+  preferred_relationship_intent: optionalText(values.preferred_relationship_intent),
+  preferred_marital_status: optionalText(values.preferred_marital_status),
+  modern_methods: optionalNumber(values.modern_methods),
+  karmic_glue: optionalNumber(values.karmic_glue),
+  ancient_methods: optionalNumber(values.ancient_methods),
+  deal_maker: optionalNumber(values.deal_maker),
+  sizzle: optionalNumber(values.sizzle),
+});
+
+const formatServerErrorValue = (value: unknown): string | null => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) => formatServerErrorValue(item))
+      .filter((item): item is string => Boolean(item));
+
+    return messages.length > 0 ? messages.join("\n") : null;
+  }
+
+  if (value && typeof value === "object") {
+    const messages = Object.entries(value)
+      .map(([key, nestedValue]) => {
+        const message = formatServerErrorValue(nestedValue);
+        return message ? `${key}: ${message}` : null;
+      })
+      .filter((item): item is string => Boolean(item));
+
+    return messages.length > 0 ? messages.join("\n") : JSON.stringify(value, null, 2);
+  }
+
+  return null;
+};
+
 const extractApiErrorMessage = (error: unknown, fallback: string) => {
-  if (isAxiosError<ApiErrorResponse | Record<string, string[]>>(error)) {
+  if (isAxiosError<ApiErrorResponse | string | string[] | Record<string, unknown>>(error)) {
     const data = error.response?.data;
+
+    if (typeof data === "string") {
+      return data;
+    }
+
+    if (Array.isArray(data)) {
+      return formatServerErrorValue(data) || fallback;
+    }
 
     if (data && typeof data === "object") {
       if ("message" in data && typeof data.message === "string") {
@@ -136,13 +307,7 @@ const extractApiErrorMessage = (error: unknown, fallback: string) => {
         return data.error;
       }
 
-      const fieldErrors = Object.values(data)
-        .flatMap((value) => (Array.isArray(value) ? value : []))
-        .filter((value): value is string => typeof value === "string");
-
-      if (fieldErrors.length > 0) {
-        return fieldErrors[0];
-      }
+      return formatServerErrorValue(data) || fallback;
     }
   }
 
@@ -157,6 +322,43 @@ const extractActionMessage = (
 const displayValue = (value: string | null | undefined) => {
   const normalized = value?.trim();
   return normalized ? normalized : "Not set";
+};
+
+const displayChoiceValue = (
+  value: string | null | undefined,
+  choices: Array<{ label: string; value: string }>,
+) => {
+  const normalized = value?.trim();
+  return choices.find((choice) => choice.value === normalized)?.label ?? displayValue(value);
+};
+
+const formatUtcOffsetTimezone = (offsetMinutes: number | undefined) => {
+  if (typeof offsetMinutes !== "number" || !Number.isFinite(offsetMinutes)) {
+    return undefined;
+  }
+
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteOffset = Math.abs(offsetMinutes);
+  const hours = Math.floor(absoluteOffset / 60).toString().padStart(2, "0");
+  const minutes = (absoluteOffset % 60).toString().padStart(2, "0");
+
+  return `UTC${sign}${hours}:${minutes}`;
+};
+
+const displayNumberValue = (value: string | number | null | undefined) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "Not set";
+  }
+
+  return displayValue(value);
+};
+
+const formatJsonBlock = (value: Record<string, unknown> | undefined) => {
+  if (!value || Object.keys(value).length === 0) {
+    return "Not returned yet";
+  }
+
+  return JSON.stringify(value, null, 2);
 };
 
 export function ProfileManager() {
@@ -180,8 +382,19 @@ export function ProfileManager() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [matchPreference, setMatchPreference] = useState<UserMatchPreference | null>(null);
+  const [matchPreferenceValues, setMatchPreferenceValues] =
+    useState<MatchPreferenceFormValues>(emptyMatchPreferenceValues);
+  const [matchPreferenceErrors, setMatchPreferenceErrors] =
+    useState<MatchPreferenceValidationErrors>({});
+  const [matchPreferenceError, setMatchPreferenceError] = useState<string | null>(null);
+  const [matchPreferenceMessage, setMatchPreferenceMessage] = useState<string | null>(null);
+  const [isLoadingMatchPreference, setIsLoadingMatchPreference] = useState(false);
+  const [isSavingMatchPreference, setIsSavingMatchPreference] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [activePanel, setActivePanel] = useState<"edit" | "password" | null>(null);
+  const [activePanel, setActivePanel] = useState<"edit" | "password" | "matchPreference" | null>(
+    null,
+  );
 
   useEffect(() => {
     void (async () => {
@@ -235,6 +448,79 @@ export function ProfileManager() {
     }));
 
     setSuccessMessage(null);
+  };
+
+  const handlePlaceOfBirthChange = useCallback((value: string) => {
+    setValues((current) => ({
+      ...current,
+      latitude: "",
+      longitude: "",
+      place_of_birth: value,
+      timezone: "",
+    }));
+
+    setErrors((current) => ({
+      ...current,
+      latitude: undefined,
+      longitude: undefined,
+      place_of_birth: undefined,
+    }));
+
+    setSuccessMessage(null);
+  }, []);
+
+  const handlePlaceOfBirthSelect = useCallback(
+    ({
+      latitude,
+      longitude,
+      place,
+      utcOffsetMinutes,
+    }: {
+      latitude?: number;
+      longitude?: number;
+      place: string;
+      utcOffsetMinutes?: number;
+    }) => {
+      setValues((current) => ({
+        ...current,
+        latitude:
+          typeof latitude === "number" && Number.isFinite(latitude) ? String(latitude) : "",
+        longitude:
+          typeof longitude === "number" && Number.isFinite(longitude)
+            ? String(longitude)
+            : "",
+        place_of_birth: place,
+        timezone: formatUtcOffsetTimezone(utcOffsetMinutes) ?? "",
+      }));
+
+      setErrors((current) => ({
+        ...current,
+        latitude: undefined,
+        longitude: undefined,
+        place_of_birth: undefined,
+      }));
+
+      setSuccessMessage(null);
+    },
+    [],
+  );
+
+  const handleMatchPreferenceChange = (
+    field: keyof MatchPreferenceFormValues,
+    value: string,
+  ) => {
+    setMatchPreferenceValues((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    setMatchPreferenceErrors((current) => ({
+      ...current,
+      [field]: undefined,
+    }));
+
+    setMatchPreferenceError(null);
+    setMatchPreferenceMessage(null);
   };
 
   const handleReset = () => {
@@ -370,6 +656,68 @@ export function ProfileManager() {
     }
   };
 
+  const handleOpenMatchPreference = async () => {
+    setActivePanel("matchPreference");
+    setError(null);
+    setSuccessMessage(null);
+    setPasswordError(null);
+    setPasswordMessage(null);
+    setMatchPreferenceError(null);
+    setMatchPreferenceMessage(null);
+    setMatchPreferenceErrors({});
+
+    try {
+      setIsLoadingMatchPreference(true);
+      const preference = await matchPreferencesService.get();
+      setMatchPreference(preference);
+      setMatchPreferenceValues(mapMatchPreferenceToFormValues(preference));
+    } catch (error) {
+      setMatchPreferenceError(
+        extractApiErrorMessage(error, "Unable to load match preferences right now."),
+      );
+    } finally {
+      setIsLoadingMatchPreference(false);
+    }
+  };
+
+  const handleResetMatchPreference = () => {
+    setMatchPreferenceValues(mapMatchPreferenceToFormValues(matchPreference));
+    setMatchPreferenceErrors({});
+    setMatchPreferenceError(null);
+    setMatchPreferenceMessage(null);
+  };
+
+  const handleSaveMatchPreference = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextErrors = validateMatchPreferenceForm(matchPreferenceValues);
+    setMatchPreferenceErrors(nextErrors);
+    setMatchPreferenceMessage(null);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    try {
+      setIsSavingMatchPreference(true);
+      setMatchPreferenceError(null);
+
+      const savedPreference = await matchPreferencesService.save(
+        buildMatchPreferencePayload(matchPreferenceValues),
+      );
+
+      setMatchPreference(savedPreference);
+      setMatchPreferenceValues(mapMatchPreferenceToFormValues(savedPreference));
+      setMatchPreferenceMessage("Match preferences saved.");
+    } catch (error) {
+      setMatchPreferenceError(
+        extractApiErrorMessage(error, "Unable to save match preferences right now."),
+      );
+    } finally {
+      setIsSavingMatchPreference(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -397,16 +745,20 @@ export function ProfileManager() {
                 : "Create your profile"
               : activePanel === "password"
                 ? "Password access"
-                : profile
-                  ? "Your profile"
-                  : "Create your profile"
+                : activePanel === "matchPreference"
+                  ? "Match preference"
+                  : profile
+                    ? "Your profile"
+                    : "Create your profile"
           }
           description={
             activePanel === "edit"
               ? "Update your saved profile details only when needed."
               : activePanel === "password"
                 ? "Update your password only when needed."
-                : "Review your saved details here. Open an action only when you want to change something."
+                : activePanel === "matchPreference"
+                  ? "Set the criteria used to search possible matches from the database."
+                  : "Review your saved details here. Open an action only when you want to change something."
           }
           actions={
             <div className="flex flex-wrap gap-3">
@@ -437,6 +789,14 @@ export function ProfileManager() {
                 }}
               >
                 Change password
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={activePanel === "matchPreference" || isLoadingMatchPreference}
+                onClick={handleOpenMatchPreference}
+              >
+                {isLoadingMatchPreference ? "Loading..." : "Match Preference"}
               </Button>
               <Button
                 type="button"
@@ -526,12 +886,13 @@ export function ProfileManager() {
                 />
               </div>
 
-              <Input
+              <GooglePlaceInput
                 error={errors.place_of_birth}
                 label="Place of Birth"
                 placeholder="City, region, country"
                 value={values.place_of_birth}
-                onChange={(event) => handleChange("place_of_birth", event.target.value)}
+                onChange={handlePlaceOfBirthChange}
+                onPlaceSelect={handlePlaceOfBirthSelect}
               />
 
               <div className="grid gap-5 md:grid-cols-2">
@@ -553,14 +914,7 @@ export function ProfileManager() {
                 />
               </div>
 
-              <Input
-                label="Timezone"
-                placeholder="Asia/Kolkata"
-                value={values.timezone}
-                onChange={(event) => handleChange("timezone", event.target.value)}
-              />
-
-              {error ? <AlertMessage>{error}</AlertMessage> : null}
+              {error ? <AlertMessage className="whitespace-pre-wrap">{error}</AlertMessage> : null}
               {successMessage ? (
                 <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                   {successMessage}
@@ -655,7 +1009,9 @@ export function ProfileManager() {
                   />
                 </div>
 
-                {passwordError ? <AlertMessage>{passwordError}</AlertMessage> : null}
+                {passwordError ? (
+                  <AlertMessage className="whitespace-pre-wrap">{passwordError}</AlertMessage>
+                ) : null}
                 {passwordMessage ? (
                   <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                     {passwordMessage}
@@ -679,6 +1035,214 @@ export function ProfileManager() {
                   </Button>
                 </div>
               </form>
+            </div>
+          ) : activePanel === "matchPreference" ? (
+            <div className={`${designSystem.inset} space-y-6 p-5`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-primary">Match Preference</p>
+                  <BodyText className="mt-2">
+                    These fields are sent to the match preference API for database match searches.
+                  </BodyText>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setActivePanel(null);
+                    setMatchPreferenceError(null);
+                    setMatchPreferenceMessage(null);
+                    setMatchPreferenceErrors({});
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+
+              {isLoadingMatchPreference ? (
+                <EmptyState>Loading match preferences...</EmptyState>
+              ) : (
+                <form className="space-y-6" onSubmit={handleSaveMatchPreference}>
+                  <div className="grid gap-5 md:grid-cols-3">
+                    <SelectInput
+                      error={matchPreferenceErrors.preferred_gender}
+                      label="Preferred Gender"
+                      options={genderChoices}
+                      placeholder="Select preferred gender"
+                      value={matchPreferenceValues.preferred_gender}
+                      onChange={(event) =>
+                        handleMatchPreferenceChange("preferred_gender", event.target.value)
+                      }
+                    />
+                    <Input
+                      error={matchPreferenceErrors.preferred_age_min}
+                      inputMode="numeric"
+                      label="Preferred Age Min"
+                      min="0"
+                      placeholder="25"
+                      type="number"
+                      value={matchPreferenceValues.preferred_age_min}
+                      onChange={(event) =>
+                        handleMatchPreferenceChange("preferred_age_min", event.target.value)
+                      }
+                    />
+                    <Input
+                      error={matchPreferenceErrors.preferred_age_max}
+                      inputMode="numeric"
+                      label="Preferred Age Max"
+                      min="0"
+                      placeholder="35"
+                      type="number"
+                      value={matchPreferenceValues.preferred_age_max}
+                      onChange={(event) =>
+                        handleMatchPreferenceChange("preferred_age_max", event.target.value)
+                      }
+                    />
+                    <Input
+                      error={matchPreferenceErrors.preferred_distance_km}
+                      inputMode="decimal"
+                      label="Preferred Distance KM"
+                      min="0"
+                      placeholder="50"
+                      type="number"
+                      value={matchPreferenceValues.preferred_distance_km}
+                      onChange={(event) =>
+                        handleMatchPreferenceChange("preferred_distance_km", event.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <SelectInput
+                      label="Preferred Relationship Intent"
+                      options={relationshipIntentChoices}
+                      placeholder="Select relationship intent"
+                      value={matchPreferenceValues.preferred_relationship_intent}
+                      onChange={(event) =>
+                        handleMatchPreferenceChange(
+                          "preferred_relationship_intent",
+                          event.target.value,
+                        )
+                      }
+                    />
+                    <SelectInput
+                      label="Preferred Marital Status"
+                      options={maritalStatusChoices}
+                      placeholder="Select marital status"
+                      value={matchPreferenceValues.preferred_marital_status}
+                      onChange={(event) =>
+                        handleMatchPreferenceChange(
+                          "preferred_marital_status",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className={designSystem.label}>Compatibility Weights</p>
+                    <div className="grid gap-5 md:grid-cols-5">
+                      <Input
+                        error={matchPreferenceErrors.modern_methods}
+                        inputMode="decimal"
+                        label="Modern Methods"
+                        type="number"
+                        value={matchPreferenceValues.modern_methods}
+                        onChange={(event) =>
+                          handleMatchPreferenceChange("modern_methods", event.target.value)
+                        }
+                      />
+                      <Input
+                        error={matchPreferenceErrors.karmic_glue}
+                        inputMode="decimal"
+                        label="Karmic Glue"
+                        type="number"
+                        value={matchPreferenceValues.karmic_glue}
+                        onChange={(event) =>
+                          handleMatchPreferenceChange("karmic_glue", event.target.value)
+                        }
+                      />
+                      <Input
+                        error={matchPreferenceErrors.ancient_methods}
+                        inputMode="decimal"
+                        label="Ancient Methods"
+                        type="number"
+                        value={matchPreferenceValues.ancient_methods}
+                        onChange={(event) =>
+                          handleMatchPreferenceChange("ancient_methods", event.target.value)
+                        }
+                      />
+                      <Input
+                        error={matchPreferenceErrors.deal_maker}
+                        inputMode="decimal"
+                        label="Deal Maker"
+                        type="number"
+                        value={matchPreferenceValues.deal_maker}
+                        onChange={(event) =>
+                          handleMatchPreferenceChange("deal_maker", event.target.value)
+                        }
+                      />
+                      <Input
+                        error={matchPreferenceErrors.sizzle}
+                        inputMode="decimal"
+                        label="Sizzle"
+                        type="number"
+                        value={matchPreferenceValues.sizzle}
+                        onChange={(event) =>
+                          handleMatchPreferenceChange("sizzle", event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {matchPreferenceError ? (
+                    <AlertMessage className="whitespace-pre-wrap">
+                      {matchPreferenceError}
+                    </AlertMessage>
+                  ) : null}
+                  {matchPreferenceMessage ? (
+                    <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
+                      {matchPreferenceMessage}
+                    </AlertMessage>
+                  ) : null}
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className={`${designSystem.inset} p-4`}>
+                      <p className={designSystem.label}>Age Range</p>
+                      <p className="mt-3 text-lg font-medium text-primary">
+                        {displayNumberValue(matchPreferenceValues.preferred_age_min)} -{" "}
+                        {displayNumberValue(matchPreferenceValues.preferred_age_max)}
+                      </p>
+                    </div>
+                    <div className={`${designSystem.inset} p-4`}>
+                      <p className={designSystem.label}>Gender</p>
+                      <p className="mt-3 text-lg font-medium text-primary">
+                        {displayChoiceValue(matchPreferenceValues.preferred_gender, genderChoices)}
+                      </p>
+                    </div>
+                    <div className={`${designSystem.inset} p-4`}>
+                      <p className={designSystem.label}>Distance KM</p>
+                      <p className="mt-3 text-lg font-medium text-primary">
+                        {displayNumberValue(matchPreferenceValues.preferred_distance_km)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button disabled={isSavingMatchPreference} type="submit">
+                      {isSavingMatchPreference ? "Saving..." : "Save match preference"}
+                    </Button>
+                    <Button
+                      disabled={isSavingMatchPreference}
+                      type="button"
+                      variant="secondary"
+                      onClick={handleResetMatchPreference}
+                    >
+                      Reset fields
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
@@ -763,18 +1327,10 @@ export function ProfileManager() {
                       {displayValue(values.longitude)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5 md:col-span-2`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
-                      Timezone
-                    </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
-                      {displayValue(values.timezone)}
-                    </p>
-                  </div>
                 </div>
               </div>
 
-              {error ? <AlertMessage>{error}</AlertMessage> : null}
+              {error ? <AlertMessage className="whitespace-pre-wrap">{error}</AlertMessage> : null}
               {successMessage ? (
                 <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
                   {successMessage}

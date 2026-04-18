@@ -7,9 +7,9 @@ export interface UserProfile {
   first_name?: string;
   last_name?: string;
   profile_picture?: string | null;
-  date_of_birth: string;
-  time_of_birth: string;
-  place_of_birth: string;
+  date_of_birth?: string;
+  time_of_birth?: string;
+  place_of_birth?: string;
   latitude?: number | null;
   longitude?: number | null;
   timezone?: string;
@@ -22,9 +22,9 @@ export interface CreateProfileRequest {
   last_name?: string;
   profile_picture?: File | null;
   remove_profile_picture?: boolean;
-  date_of_birth: string;
-  time_of_birth: string;
-  place_of_birth: string;
+  date_of_birth?: string;
+  time_of_birth?: string;
+  place_of_birth?: string;
   latitude?: number | null;
   longitude?: number | null;
   timezone?: string;

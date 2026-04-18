@@ -22,6 +22,7 @@ import type { PlanParameters } from "@/types/plan";
 import type { UserProfile } from "@/types/profile";
 
 const purchaseOptions = [5, 15, 30];
+const heroRotatingWords = ["sex", "love", "friendship", "time"];
 
 type ServerMessagePayload =
   | ApiErrorResponse
@@ -257,6 +258,28 @@ function MiniActionLink({
   );
 }
 
+function RotatingHeroWord() {
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setWordIndex((currentIndex) => (currentIndex + 1) % heroRotatingWords.length);
+    }, 1500);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return (
+    <span
+      key={heroRotatingWords[wordIndex]}
+      className="hero-rotating-word inline-block min-w-[6.9em] text-[#f5d5c8]"
+      aria-live="polite"
+    >
+      {heroRotatingWords[wordIndex]}
+    </span>
+  );
+}
+
 export function HomeManager() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
@@ -452,7 +475,7 @@ export function HomeManager() {
                 Compatibility Workspace
               </p>
               <h1 className="mt-5 max-w-3xl font-display text-5xl font-semibold tracking-tight text-white sm:text-6xl">
-                Run checks, review signals, and manage credits from one place.
+                For the best <RotatingHeroWord /> <br/>of your life.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-8 text-[#eabfb9]">
                 Sign in to access saved profiles, recent compatibility history, and

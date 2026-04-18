@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppScaffold } from "@/components/layout/app-scaffold";
 import { ResultsBoard } from "@/components/results/results-board";
@@ -26,6 +26,14 @@ import type { PrivatePerson } from "@/types/private-persons";
 
 const purchaseOptions = [5, 15, 30];
 
+type DashboardPanel =
+  | "private-users"
+  | "top-matches"
+  | "compatibility"
+  | "history"
+  | "profile"
+  | "credits";
+
 const formatDate = (value?: string) => {
   if (!value) {
     return "Not available";
@@ -50,27 +58,6 @@ const createPaymentReference = (credits: number) => {
       : String(Date.now());
 
   return `dashboard-${credits}-${suffix}`;
-};
-
-const statusTone = (credits: number) => {
-  if (credits <= 0) {
-    return {
-      label: "Needs credits",
-      className: "border-[#eabfb9] bg-[#f5d5c8] text-[#901214]",
-    };
-  }
-
-  if (credits <= 2) {
-    return {
-      label: "Low balance",
-      className: "border-[rgba(192,119,113,0.28)] bg-[rgba(245,213,200,0.9)] text-[#7f533e]",
-    };
-  }
-
-  return {
-    label: "Ready to match",
-    className: "border-[#eabfb9] bg-[#fafafa] text-[#7f533e]",
-  };
 };
 
 function ActionTile({
@@ -100,6 +87,7 @@ function ActionTile({
 
 export function DashboardOverview() {
   const router = useRouter();
+  const activePanelRef = useRef<HTMLDivElement | null>(null);
   const { credits, parameters } = usePlanAccess();
   const setCredits = usePlanStore((state) => state.setCredits);
   const [history, setHistory] = useState<StoredCompatibilityResult[]>([]);
@@ -112,6 +100,7 @@ export function DashboardOverview() {
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [isPurchasingCredits, setIsPurchasingCredits] = useState<number | null>(null);
+  const [activeDashboardPanel, setActiveDashboardPanel] = useState<DashboardPanel | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -176,7 +165,6 @@ export function DashboardOverview() {
   const availableCredits = planSummary?.credits ?? credits;
   const freeCredits = planSummary?.free_credits ?? 0;
   const paidCredits = planSummary?.paid_credits ?? Math.max(availableCredits - freeCredits, 0);
-  const topStatus = statusTone(availableCredits);
 
   const unlockedParameters = useMemo(
     () => Object.values(parameters).filter((item) => item.free).length,
@@ -214,6 +202,16 @@ export function DashboardOverview() {
     }
   };
 
+  const openDashboardPanel = (panel: DashboardPanel) => {
+    setActiveDashboardPanel(panel);
+    window.setTimeout(() => {
+      activePanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  };
+
   return (
     <AppScaffold
       title="Dashboard"
@@ -229,7 +227,7 @@ export function DashboardOverview() {
     >
       {error ? <AlertMessage>{error}</AlertMessage> : null}
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+      <div className="grid gap-8">
         <SectionCard
           eyebrow="Command Center"
           title="Matchmaking at a glance"
@@ -252,11 +250,41 @@ export function DashboardOverview() {
               description="Add new private profiles, review your full library, or jump straight to the strongest current match."
               action={
                 <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/private-persons" variant="primary">
+                  <Button
+                    aria-pressed={activeDashboardPanel === "private-users"}
+                    className={
+                      activeDashboardPanel === "private-users"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    onClick={() => openDashboardPanel("private-users")}
+                  >
                     Add private user
-                  </ActionLink>
-                  <ActionLink href="/private-persons">Show all private users</ActionLink>
-                  <ActionLink href="#top-matches">Top match</ActionLink>
+                  </Button>
+                  <Button
+                    aria-pressed={activeDashboardPanel === "private-users"}
+                    className={
+                      activeDashboardPanel === "private-users"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    variant="secondary"
+                    onClick={() => openDashboardPanel("private-users")}
+                  >
+                    Show all private users
+                  </Button>
+                  <Button
+                    aria-pressed={activeDashboardPanel === "top-matches"}
+                    className={
+                      activeDashboardPanel === "top-matches"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    variant="secondary"
+                    onClick={() => openDashboardPanel("top-matches")}
+                  >
+                    Top match
+                  </Button>
                 </div>
               }
             />
@@ -267,10 +295,29 @@ export function DashboardOverview() {
               description="Go directly into compatibility calculation or review the result archive before running another comparison."
               action={
                 <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/compatibility" variant="primary">
+                  <Button
+                    aria-pressed={activeDashboardPanel === "compatibility"}
+                    className={
+                      activeDashboardPanel === "compatibility"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    onClick={() => openDashboardPanel("compatibility")}
+                  >
                     Run compatibility
-                  </ActionLink>
-                  <ActionLink href="/results">Open results</ActionLink>
+                  </Button>
+                  <Button
+                    aria-pressed={activeDashboardPanel === "history"}
+                    className={
+                      activeDashboardPanel === "history"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    variant="secondary"
+                    onClick={() => openDashboardPanel("history")}
+                  >
+                    Open results
+                  </Button>
                 </div>
               }
             />
@@ -281,72 +328,45 @@ export function DashboardOverview() {
               description="Maintain your own birth details and keep premium parameters available for deeper readings."
               action={
                 <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/profile" variant="primary">
+                  <Button
+                    aria-pressed={activeDashboardPanel === "profile"}
+                    className={
+                      activeDashboardPanel === "profile"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    onClick={() => openDashboardPanel("profile")}
+                  >
                     Update profile
-                  </ActionLink>
-                  <ActionLink href="#credits-access">Credits & access</ActionLink>
+                  </Button>
+                  <Button
+                    aria-pressed={activeDashboardPanel === "credits"}
+                    className={
+                      activeDashboardPanel === "credits"
+                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
+                        : ""
+                    }
+                    variant="secondary"
+                    onClick={() => openDashboardPanel("credits")}
+                  >
+                    Credits & access
+                  </Button>
                 </div>
               }
             />
           </div>
         </SectionCard>
-
-        <SectionCard
-          eyebrow="Status"
-          title="Current readiness"
-          description="A compact summary of whether this account is ready to keep matching without interruption."
-        >
-          <div
-            className={`${designSystem.inset} flex items-center justify-between gap-4 p-5`}
-          >
-            <div>
-              <p className={designSystem.label}>Dashboard State</p>
-              <p className="mt-3 font-display text-3xl font-semibold text-primary">
-                {topStatus.label}
-              </p>
-            </div>
-            <span
-              className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] ${topStatus.className}`}
-            >
-              {availableCredits} credits
-            </span>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            <div className={designSystem.tile}>
-              <p className={designSystem.label}>Last private user added</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                {latestPrivatePerson?.name ?? "No private users yet"}
-              </p>
-              <BodyText className="mt-2 leading-6">
-                {latestPrivatePerson
-                  ? `Added ${formatDate(latestPrivatePerson.created_at)}`
-                  : "Create a private profile to start building a working shortlist."}
-              </BodyText>
-            </div>
-
-            <div className={designSystem.tile}>
-              <p className={designSystem.label}>Strongest available match</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                {strongestMatch?.personName ?? "No top matches yet"}
-              </p>
-              <BodyText className="mt-2 leading-6">
-                {strongestMatch
-                  ? `Current leading score: ${strongestMatch.score.toFixed(1)}`
-                  : "Run compatibility checks to surface high-confidence matches here."}
-              </BodyText>
-            </div>
-          </div>
-        </SectionCard>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <SectionCard
-          eyebrow="Private Users"
-          title="Private user workspace"
-          description="The dashboard section for managing your private matchmaking pool and deciding what to do next with it."
-          actions={<ActionLink href="/private-persons">Show all private users</ActionLink>}
-        >
+      {activeDashboardPanel ? (
+        <div ref={activePanelRef} className="scroll-mt-6">
+          {activeDashboardPanel === "private-users" ? (
+            <SectionCard
+              eyebrow="Private Users"
+              title="Private user workspace"
+              description="The dashboard section for managing your private matchmaking pool and deciding what to do next with it."
+              actions={<ActionLink href="/private-persons">Show all private users</ActionLink>}
+            >
           <div className="grid gap-4 md:grid-cols-3">
             <MetricTile label="Profiles Saved" value={privatePersons.length} />
             <MetricTile
@@ -378,7 +398,12 @@ export function DashboardOverview() {
                   Add private user
                 </ActionLink>
                 <ActionLink href="/private-persons">Show all private users</ActionLink>
-                <ActionLink href="#top-matches">Top match</ActionLink>
+                <Button
+                  variant="secondary"
+                  onClick={() => openDashboardPanel("top-matches")}
+                >
+                  Top match
+                </Button>
               </div>
             </div>
 
@@ -403,18 +428,20 @@ export function DashboardOverview() {
               )}
             </div>
           </div>
-        </SectionCard>
+            </SectionCard>
+          ) : null}
 
-        <SectionCard
-          eyebrow="Credits"
-          title="Credits & access"
-          description="Track balance, understand free versus paid access, and add more credits without leaving the dashboard."
-          actions={
-            <ActionLink href="/compatibility" variant="primary">
-              Use credits now
-            </ActionLink>
-          }
-        >
+          {activeDashboardPanel === "credits" ? (
+            <SectionCard
+              eyebrow="Credits"
+              title="Credits & access"
+              description="Track balance, understand free versus paid access, and add more credits without leaving the dashboard."
+              actions={
+                <ActionLink href="/compatibility" variant="primary">
+                  Use credits now
+                </ActionLink>
+              }
+            >
           <div id="credits-access" className="grid gap-4 md:grid-cols-3">
             <MetricTile label="Available" value={availableCredits} />
             <MetricTile label="Free Credits" value={freeCredits} />
@@ -491,15 +518,15 @@ export function DashboardOverview() {
               </div>
             </div>
           </div>
-        </SectionCard>
-      </div>
+            </SectionCard>
+          ) : null}
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-        <SectionCard
-          eyebrow="Workflow"
-          title="What matchmaking users usually need next"
-          description="Beyond private profiles and credits, most repeat users need quick access to profile readiness, result history, and decision support."
-        >
+          {activeDashboardPanel === "profile" ? (
+            <SectionCard
+              eyebrow="Profile"
+              title="Profile readiness"
+              description="Keep your own birth data current before comparing new candidates."
+            >
           <div className="grid gap-4 md:grid-cols-2">
             <div className={`${designSystem.inset} p-5`}>
               <p className={designSystem.eyebrow}>Profile Readiness</p>
@@ -518,13 +545,69 @@ export function DashboardOverview() {
             </div>
 
             <div className={`${designSystem.inset} p-5`}>
+              <p className={designSystem.label}>Recent activity</p>
+              <p className="mt-3 text-lg font-semibold text-primary">
+                {history.length} stored compatibility check{history.length === 1 ? "" : "s"}
+              </p>
+              <BodyText className="mt-2 leading-6">
+                A healthy archive makes it easier to spot patterns across multiple potential
+                matches.
+              </BodyText>
+            </div>
+          </div>
+            </SectionCard>
+          ) : null}
+
+          {activeDashboardPanel === "compatibility" ? (
+            <SectionCard
+              eyebrow="Matching"
+              title="Run compatibility"
+              description="Start a fresh compatibility run whenever a private user is ready for review."
+            >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className={`${designSystem.inset} p-5`}>
+              <p className={designSystem.label}>Need a new comparison?</p>
+              <p className="mt-3 text-lg font-semibold text-primary">
+                Go from shortlist to score quickly
+              </p>
+              <BodyText className="mt-2 leading-6">
+                Start a fresh compatibility run whenever a new private user is ready for
+                review.
+              </BodyText>
+              <div className="mt-5">
+                <Button onClick={() => router.push("/compatibility")}>Run compatibility</Button>
+              </div>
+            </div>
+
+            <div className={`${designSystem.inset} p-5`}>
+              <p className={designSystem.label}>Available balance</p>
+              <p className="mt-3 text-lg font-semibold text-primary">
+                {availableCredits} credit{availableCredits === 1 ? "" : "s"} ready
+              </p>
+              <BodyText className="mt-2 leading-6">
+                Use credits for deeper compatibility analysis when premium parameters are
+                needed.
+              </BodyText>
+            </div>
+          </div>
+            </SectionCard>
+          ) : null}
+
+          {activeDashboardPanel === "history" ? (
+            <SectionCard
+              eyebrow="Results"
+              title="Result archive"
+              description="Open the result archive when you need to compare multiple past checks instead of relying on a single top score."
+            >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className={`${designSystem.inset} p-5`}>
               <p className={designSystem.eyebrow}>Results Review</p>
               <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight text-primary">
                 Compare before you decide
               </h3>
               <BodyText className="mt-3 leading-6">
-                Open the result archive when you need to compare multiple past checks instead
-                of relying on a single top score.
+                Review past compatibility checks when you need to compare several candidates
+                side by side.
               </BodyText>
               <div className="mt-5">
                 <ActionLink href="/results" variant="primary">
@@ -543,90 +626,45 @@ export function DashboardOverview() {
                 matches.
               </BodyText>
             </div>
+          </div>
+            </SectionCard>
+          ) : null}
 
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Need a new comparison?</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                Go from shortlist to score quickly
-              </p>
-              <BodyText className="mt-2 leading-6">
-                Start a fresh compatibility run whenever a new private user is ready for
-                review.
-              </BodyText>
-              <div className="mt-5">
-                <Button onClick={() => router.push("/compatibility")}>Run compatibility</Button>
+          {isLoading && (activeDashboardPanel === "top-matches" || activeDashboardPanel === "history") ? (
+            <SectionCard
+              title="Loading insights"
+              description="Fetching compatibility history, top matches, private users, and credits."
+            >
+              <EmptyState className="border-black/10">Loading dashboard data...</EmptyState>
+            </SectionCard>
+          ) : !isLoading && activeDashboardPanel === "top-matches" ? (
+            <div className="space-y-8">
+              <div id="top-matches">
+                <ResultsBoard
+                  credits={availableCredits}
+                  description="Top matches returned by the backend, sorted and grouped for quick review."
+                  emptyMessage="No top matches are available yet."
+                  parameters={parameters}
+                  results={topMatches}
+                  title="Top matches"
+                />
               </div>
             </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          eyebrow="Billing"
-          title="Recent credit activity"
-          description="A short payment history helps users verify that purchases landed before they continue matching."
-        >
-          {payments.length === 0 ? (
-            <EmptyState>No payment history is available yet.</EmptyState>
-          ) : (
-            <div className="space-y-3">
-              {payments.slice(0, 4).map((payment) => (
-                <div
-                  key={String(payment.id)}
-                  className={`${designSystem.inset} flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between`}
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-primary">
-                      {payment.credits_purchased ?? 0} credits
-                    </p>
-                    <BodyText className="mt-1 leading-6">
-                      {payment.payment_reference || "Reference pending"}
-                    </BodyText>
-                  </div>
-                  <div className="sm:text-right">
-                    <p className="text-sm font-medium capitalize text-primary">
-                      {payment.status || "Completed"}
-                    </p>
-                    <BodyText className="mt-1 leading-6">
-                      {formatDate(payment.created_at)}
-                    </BodyText>
-                  </div>
-                </div>
-              ))}
+          ) : !isLoading && activeDashboardPanel === "history" ? (
+            <div className="space-y-8">
+              <ResultsBoard
+                credits={availableCredits}
+                description="Recent compatibility history returned by the backend."
+                emptyMessage="No compatibility history is available yet."
+                parameters={parameters}
+                results={history}
+                title="History"
+              />
             </div>
-          )}
-        </SectionCard>
-      </div>
-
-      {isLoading ? (
-        <SectionCard
-          title="Loading insights"
-          description="Fetching compatibility history, top matches, private users, and credits."
-        >
-          <EmptyState className="border-black/10">Loading dashboard data...</EmptyState>
-        </SectionCard>
-      ) : (
-        <div className="space-y-8">
-          <div id="top-matches">
-            <ResultsBoard
-              credits={availableCredits}
-              description="Top matches returned by the backend, sorted and grouped for quick review."
-              emptyMessage="No top matches are available yet."
-              parameters={parameters}
-              results={topMatches}
-              title="Top matches"
-            />
-          </div>
-
-          <ResultsBoard
-            credits={availableCredits}
-            description="Recent compatibility history returned by the backend."
-            emptyMessage="No compatibility history is available yet."
-            parameters={parameters}
-            results={history}
-            title="History"
-          />
+          ) : null}
         </div>
-      )}
+      ) : null}
+
     </AppScaffold>
   );
 }
