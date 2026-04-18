@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppScaffold } from "@/components/layout/app-scaffold";
 import { Button } from "@/components/ui/button";
 import {
+  ActionLink,
   AlertMessage,
   EmptyState,
   SelectCard,
@@ -14,6 +15,7 @@ import {
   designSystem,
 } from "@/components/ui/design-system";
 import { SectionCard } from "@/components/ui/section-card";
+import { usePlanAccess } from "@/hooks/usePlanAccess";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { privatePersonsService } from "@/services/privatePersonsService";
@@ -26,10 +28,11 @@ import type { UserProfile } from "@/types/profile";
 export function CompatibilityManager() {
   const router = useRouter();
   const setResults = useResultsStore((state) => state.setResults);
+  const { credits, isLoading: isPlanLoading } = usePlanAccess();
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [privatePersons, setPrivatePersons] = useState<PrivatePerson[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [selectedPersonIds, setSelectedPersonIds] = useState<string[]>([]);
+  const [selectedPersonId, setSelectedPersonId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,14 +70,6 @@ export function CompatibilityManager() {
       }, {}),
     [privatePersons],
   );
-
-  const togglePerson = (personId: string) => {
-    setSelectedPersonIds((current) =>
-      current.includes(personId)
-        ? current.filter((value) => value !== personId)
-        : [...current, personId],
-    );
-  };
 
   const getProfileDisplayName = (profile: UserProfile) => {
     const firstName = profile.first_name ?? profile.user?.first_name ?? "";
@@ -142,8 +137,8 @@ export function CompatibilityManager() {
       return;
     }
 
-    if (selectedPersonIds.length === 0) {
-      setError("Select at least one private person.");
+    if (!selectedPersonId) {
+      setError("Select one private person.");
       return;
     }
 
@@ -151,17 +146,11 @@ export function CompatibilityManager() {
       setIsSubmitting(true);
       setError(null);
 
-      const responses = await Promise.all(
-        selectedPersonIds.map((privatePersonId) =>
-          compatibilityService.calculate({
-            matched_private_person_id: privatePersonId,
-          }),
-        ),
-      );
+      const response = await compatibilityService.calculate({
+        matched_private_person_id: selectedPersonId,
+      });
 
-      const normalizedResults = responses.flatMap((response) =>
-        normalizeCompatibilityResults(response, personLookup),
-      );
+      const normalizedResults = normalizeCompatibilityResults(response, personLookup);
 
       setResults(normalizedResults);
       router.push("/results");
@@ -175,14 +164,34 @@ export function CompatibilityManager() {
   return (
     <AppScaffold
       title="Compatibility"
-      description="Select your birth profile and one or more private persons to run compatibility checks. Results are stored locally and presented with premium visual hierarchy on the results page."
+      description="Select your birth profile and one private person to run a compatibility check. Results are stored locally and presented with premium visual hierarchy on the results page."
     >
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-8">
         <SectionCard
           eyebrow="Compatibility Run"
           title="Create a compatibility run"
-          description="Choose the profile you want to compare, then select one or more saved private persons."
+          description="Choose the profile you want to compare, then select one saved private person."
+          actions={
+            <div className={`${designSystem.inset} min-w-[170px] p-4 text-right`}>
+              <p className={designSystem.label}>Outstanding credits</p>
+              <p className="mt-2 font-display text-4xl font-semibold leading-none text-primary">
+                {isPlanLoading ? "..." : credits}
+              </p>
+            </div>
+          }
         >
+          {!isPlanLoading && credits <= 0 ? (
+            <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <AlertMessage className="flex-1">
+                No credits are available. Purchase credits before running a paid compatibility
+                check.
+              </AlertMessage>
+              <ActionLink href="/dashboard#credits-access" variant="primary">
+                Purchase credits
+              </ActionLink>
+            </div>
+          ) : null}
+
           {isLoading ? (
             <EmptyState>
               Loading available profiles and private persons...
@@ -235,14 +244,14 @@ export function CompatibilityManager() {
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground">Private persons</p>
                   <p className="text-sm text-foreground/55">
-                    {selectedPersonIds.length} selected
+                    {selectedPersonId ? "1 selected" : "None selected"}
                   </p>
                 </div>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {privatePersons.length > 0 ? (
                     privatePersons.map((person) => {
-                      const checked = selectedPersonIds.includes(String(person.id));
+                      const checked = selectedPersonId === String(person.id);
 
                       return (
                         <SelectionPanel
@@ -251,8 +260,9 @@ export function CompatibilityManager() {
                         >
                           <input
                             checked={checked}
-                            type="checkbox"
-                            onChange={() => togglePerson(String(person.id))}
+                            name="private-person"
+                            type="radio"
+                            onChange={() => setSelectedPersonId(String(person.id))}
                             className="mt-1 h-4 w-4 rounded border-black/20 text-accent focus:ring-accent"
                           />
                           <div>
@@ -289,9 +299,12 @@ export function CompatibilityManager() {
                 <Button disabled={isSubmitting || isLoading} onClick={runCompatibilityCheck}>
                   {isSubmitting ? "Running checks..." : "Run compatibility"}
                 </Button>
-                <Button onClick={() => router.push("/results")} variant="secondary">
-                  View stored results
+                <Button onClick={() => router.push("/private-persons")} variant="secondary">
+                  Add private user
                 </Button>
+                <ActionLink href="/top-scores">
+                  View past compatibility scores
+                </ActionLink>
               </div>
             </div>
           )}
@@ -304,15 +317,15 @@ export function CompatibilityManager() {
         >
           <div className={`${designSystem.inset} space-y-4 p-5 text-sm leading-7 text-foreground/70`}>
             <p>Use the most complete birth details available for cleaner compatibility signals.</p>
-            <p>Select multiple private persons to run a batch comparison in one action.</p>
+            <p>Select one private person per compatibility check.</p>
             <p>
               Paid parameters are hidden later in results until they are unlocked by your
               current plan.
             </p>
             <p>
               Need to review past output? Open{" "}
-              <Link className="font-medium text-accent" href="/results">
-                results
+              <Link className="font-medium text-accent" href="/top-scores">
+                top scores
               </Link>
               .
             </p>

@@ -1,7 +1,6 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AppScaffold } from "@/components/layout/app-scaffold";
 import { ResultsBoard } from "@/components/results/results-board";
 import { Button } from "@/components/ui/button";
@@ -86,7 +85,6 @@ function ActionTile({
 }
 
 export function DashboardOverview() {
-  const router = useRouter();
   const activePanelRef = useRef<HTMLDivElement | null>(null);
   const { credits, parameters } = usePlanAccess();
   const setCredits = usePlanStore((state) => state.setCredits);
@@ -212,13 +210,28 @@ export function DashboardOverview() {
     }, 0);
   };
 
+  useEffect(() => {
+    const openPanelFromHash = () => {
+      if (window.location.hash === "#credits-access") {
+        openDashboardPanel("credits");
+      }
+    };
+
+    openPanelFromHash();
+    window.addEventListener("hashchange", openPanelFromHash);
+
+    return () => {
+      window.removeEventListener("hashchange", openPanelFromHash);
+    };
+  }, []);
+
   return (
     <AppScaffold
       title="Dashboard"
       description="Keep private profiles, credits, recent compatibility activity, and strongest matches together in one dashboard built for repeated matchmaking workflows."
       actions={
         <>
-          <ActionLink href="/private-persons">Show all private users</ActionLink>
+          <ActionLink href="/private-persons">Private User</ActionLink>
           <ActionLink href="/compatibility" variant="primary">
             Run compatibility
           </ActionLink>
@@ -250,29 +263,9 @@ export function DashboardOverview() {
               description="Add new private profiles, review your full library, or jump straight to the strongest current match."
               action={
                 <div className="flex flex-wrap gap-3">
-                  <Button
-                    aria-pressed={activeDashboardPanel === "private-users"}
-                    className={
-                      activeDashboardPanel === "private-users"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    onClick={() => openDashboardPanel("private-users")}
-                  >
-                    Add private user
-                  </Button>
-                  <Button
-                    aria-pressed={activeDashboardPanel === "private-users"}
-                    className={
-                      activeDashboardPanel === "private-users"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    variant="secondary"
-                    onClick={() => openDashboardPanel("private-users")}
-                  >
-                    Show all private users
-                  </Button>
+                  <ActionLink href="/private-persons" variant="primary">
+                    Private User
+                  </ActionLink>
                   <Button
                     aria-pressed={activeDashboardPanel === "top-matches"}
                     className={
@@ -295,17 +288,9 @@ export function DashboardOverview() {
               description="Go directly into compatibility calculation or review the result archive before running another comparison."
               action={
                 <div className="flex flex-wrap gap-3">
-                  <Button
-                    aria-pressed={activeDashboardPanel === "compatibility"}
-                    className={
-                      activeDashboardPanel === "compatibility"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    onClick={() => openDashboardPanel("compatibility")}
-                  >
+                  <ActionLink href="/compatibility" variant="primary">
                     Run compatibility
-                  </Button>
+                  </ActionLink>
                   <Button
                     aria-pressed={activeDashboardPanel === "history"}
                     className={
@@ -365,7 +350,7 @@ export function DashboardOverview() {
               eyebrow="Private Users"
               title="Private user workspace"
               description="The dashboard section for managing your private matchmaking pool and deciding what to do next with it."
-              actions={<ActionLink href="/private-persons">Show all private users</ActionLink>}
+              actions={<ActionLink href="/private-persons">Private User</ActionLink>}
             >
           <div className="grid gap-4 md:grid-cols-3">
             <MetricTile label="Profiles Saved" value={privatePersons.length} />
@@ -395,9 +380,8 @@ export function DashboardOverview() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <ActionLink href="/private-persons" variant="primary">
-                  Add private user
+                  Private User
                 </ActionLink>
-                <ActionLink href="/private-persons">Show all private users</ActionLink>
                 <Button
                   variant="secondary"
                   onClick={() => openDashboardPanel("top-matches")}
@@ -575,7 +559,9 @@ export function DashboardOverview() {
                 review.
               </BodyText>
               <div className="mt-5">
-                <Button onClick={() => router.push("/compatibility")}>Run compatibility</Button>
+                <ActionLink href="/compatibility" variant="primary">
+                  Run compatibility
+                </ActionLink>
               </div>
             </div>
 

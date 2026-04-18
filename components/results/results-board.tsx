@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   BodyText,
@@ -16,10 +16,12 @@ interface ResultsBoardProps {
   credits?: number;
   emptyMessage: string;
   parameters: PlanParameters;
+  pageSize?: number;
   results: StoredCompatibilityResult[];
   title: string;
   description: string;
   onClear?: () => void;
+  variant?: "grouped" | "scores";
 }
 
 const formatDate = (value?: string) => {
@@ -77,6 +79,20 @@ const shouldBlurParameter = (
   return isLockedParameter(parameter.key, parameters);
 };
 
+const sortByScore = (
+  left: StoredCompatibilityResult,
+  right: StoredCompatibilityResult,
+) => {
+  if (right.score !== left.score) {
+    return right.score - left.score;
+  }
+
+  return (
+    new Date(right.createdAt ?? 0).getTime() -
+    new Date(left.createdAt ?? 0).getTime()
+  );
+};
+
 const LockedParameterValue = ({
   value,
   cta,
@@ -99,14 +115,111 @@ const LockedParameterValue = ({
   </div>
 );
 
+function ResultCard({
+  parameters,
+  result,
+  showPersonName = false,
+}: {
+  parameters: PlanParameters;
+  result: StoredCompatibilityResult;
+  showPersonName?: boolean;
+}) {
+  return (
+    <div className="rounded-[1.65rem] border border-[rgba(144,18,20,0.08)] bg-[rgba(250,250,250,0.86)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className="grid h-20 w-20 place-items-center rounded-full p-[6px] shadow-[0_16px_34px_rgba(144,18,20,0.14)]"
+            style={scoreRingStyle(result.score)}
+          >
+            <div className="grid h-full w-full place-items-center rounded-full bg-[rgba(250,250,250,0.96)]">
+              <span className="font-display text-3xl font-semibold text-primary">
+                {Math.round(result.score)}
+              </span>
+            </div>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">
+              Compatibility Score
+            </p>
+            {showPersonName ? (
+              <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-primary">
+                {result.personName}
+              </p>
+            ) : null}
+            <p className="mt-2 h-2.5 w-40 overflow-hidden rounded-full bg-[rgba(144,18,20,0.12)]">
+              <span
+                className="block h-full rounded-full bg-[linear-gradient(90deg,#c07771_0%,#901214_100%)]"
+                style={{ width: `${Math.max(6, Math.min(result.score, 100))}%` }}
+              />
+            </p>
+            <p className="mt-3 text-3xl font-semibold text-primary">
+              {result.score.toFixed(1)}
+            </p>
+          </div>
+        </div>
+        <div className="sm:text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/42">
+            Compatibility Score
+          </p>
+          {result.createdAt ? (
+            <p className="mt-3 text-sm text-foreground/55">
+              {formatDate(result.createdAt)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {result.summary ? (
+        <BodyText className="mt-4 leading-6">{result.summary}</BodyText>
+      ) : null}
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {result.parameters.length > 0 ? (
+          result.parameters.map((parameter) => {
+            const locked = shouldBlurParameter(parameter, parameters);
+
+            return (
+              <div
+                key={`${result.id}-${parameter.key}`}
+                className="rounded-2xl bg-muted/40 p-4"
+              >
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/45">
+                  {parameter.label}
+                </dt>
+                <dd className="mt-3 min-h-12 text-sm font-medium text-foreground">
+                  {locked ? (
+                    <LockedParameterValue
+                      cta="Unlock Full Compatibility"
+                      value={parameter.value}
+                    />
+                  ) : (
+                    parameter.value
+                  )}
+                </dd>
+              </div>
+            );
+          })
+        ) : (
+          <InfoTile className="rounded-2xl border-0 bg-muted/40 text-sm text-foreground/60 shadow-none">
+            No parameter breakdown was returned for this result.
+          </InfoTile>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ResultsBoard({
   credits = 0,
   description,
   emptyMessage,
   onClear,
+  pageSize,
   parameters,
   results,
   title,
+  variant = "grouped",
 }: ResultsBoardProps) {
   const groupedResults = useMemo(() => {
     const groups = results.reduce<Record<string, StoredCompatibilityResult[]>>(
@@ -132,6 +245,27 @@ export function ResultsBoard({
       }))
       .sort((left, right) => right.topScore - left.topScore);
   }, [results]);
+  const sortedResults = useMemo(
+    () => [...results].sort(sortByScore),
+    [results],
+  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages =
+    variant === "scores" && pageSize
+      ? Math.max(1, Math.ceil(sortedResults.length / pageSize))
+      : 1;
+  const paginatedResults =
+    variant === "scores" && pageSize
+      ? sortedResults.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+      : sortedResults;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize, results.length, variant]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   return (
     <SectionCard
@@ -147,11 +281,52 @@ export function ResultsBoard({
     >
       <div className={`${designSystem.inset} mb-6 flex items-center justify-between px-4 py-3 text-sm text-foreground/70`}>
         <span>{results.length} result entries</span>
-        <span>{credits} credits available</span>
+        <span>
+          {variant === "scores" && pageSize
+            ? `Page ${currentPage} of ${totalPages}`
+            : `${credits} credits available`}
+        </span>
       </div>
 
-      {groupedResults.length === 0 ? (
+      {results.length === 0 ? (
         <EmptyState>{emptyMessage}</EmptyState>
+      ) : variant === "scores" ? (
+        <div className="space-y-5">
+          {paginatedResults.map((result) => (
+            <ResultCard
+              key={result.id}
+              parameters={parameters}
+              result={result}
+              showPersonName
+            />
+          ))}
+
+          {pageSize && totalPages > 1 ? (
+            <div className={`${designSystem.inset} flex flex-wrap items-center justify-between gap-3 px-4 py-3`}>
+              <Button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                variant="secondary"
+              >
+                Previous
+              </Button>
+              <span className="text-sm font-medium text-foreground/65">
+                Showing {(currentPage - 1) * pageSize + 1}-
+                {Math.min(currentPage * pageSize, sortedResults.length)} of{" "}
+                {sortedResults.length}
+              </span>
+              <Button
+                disabled={currentPage === totalPages}
+                onClick={() =>
+                  setCurrentPage((page) => Math.min(totalPages, page + 1))
+                }
+                variant="secondary"
+              >
+                Next
+              </Button>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div className="space-y-5">
           {groupedResults.map((group) => (
@@ -170,86 +345,11 @@ export function ResultsBoard({
 
               <div className="mt-5 space-y-4">
                 {group.items.map((result) => (
-                  <div
+                  <ResultCard
                     key={result.id}
-                    className="rounded-[1.65rem] border border-[rgba(144,18,20,0.08)] bg-[rgba(250,250,250,0.86)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)]"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="grid h-20 w-20 place-items-center rounded-full p-[6px] shadow-[0_16px_34px_rgba(144,18,20,0.14)]"
-                          style={scoreRingStyle(result.score)}
-                        >
-                          <div className="grid h-full w-full place-items-center rounded-full bg-[rgba(250,250,250,0.96)]">
-                            <span className="font-display text-3xl font-semibold text-primary">
-                              {Math.round(result.score)}
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">
-                            Compatibility Score
-                          </p>
-                          <p className="mt-2 h-2.5 w-40 overflow-hidden rounded-full bg-[rgba(144,18,20,0.12)]">
-                            <span
-                              className="block h-full rounded-full bg-[linear-gradient(90deg,#c07771_0%,#901214_100%)]"
-                              style={{ width: `${Math.max(6, Math.min(result.score, 100))}%` }}
-                            />
-                          </p>
-                          <p className="mt-3 text-3xl font-semibold text-primary">
-                            {result.score.toFixed(1)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="sm:text-right">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/42">
-                          Compatibility Score
-                        </p>
-                        {result.createdAt ? (
-                          <p className="mt-3 text-sm text-foreground/55">
-                            {formatDate(result.createdAt)}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {result.summary ? (
-                      <BodyText className="mt-4 leading-6">{result.summary}</BodyText>
-                    ) : null}
-
-                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {result.parameters.length > 0 ? (
-                        result.parameters.map((parameter) => {
-                          const locked = shouldBlurParameter(parameter, parameters);
-
-                          return (
-                            <div
-                              key={`${result.id}-${parameter.key}`}
-                              className="rounded-2xl bg-muted/40 p-4"
-                            >
-                              <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/45">
-                                {parameter.label}
-                              </dt>
-                              <dd className="mt-3 min-h-12 text-sm font-medium text-foreground">
-                                {locked ? (
-                                  <LockedParameterValue
-                                    cta="Unlock Full Compatibility"
-                                    value={parameter.value}
-                                  />
-                                ) : (
-                                  parameter.value
-                                )}
-                              </dd>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <InfoTile className="rounded-2xl border-0 bg-muted/40 text-sm text-foreground/60 shadow-none">
-                          No parameter breakdown was returned for this result.
-                        </InfoTile>
-                      )}
-                    </div>
-                  </div>
+                    parameters={parameters}
+                    result={result}
+                  />
                 ))}
               </div>
             </article>
