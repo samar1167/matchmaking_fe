@@ -6,6 +6,7 @@ export interface UserProfile {
   user?: AuthUser;
   first_name?: string;
   last_name?: string;
+  gender?: string | null;
   profile_picture?: string | null;
   public_match?: boolean | null;
   date_of_birth?: string;
@@ -21,6 +22,7 @@ export interface UserProfile {
 export interface CreateProfileRequest {
   first_name?: string;
   last_name?: string;
+  gender?: string | null;
   profile_picture?: File | null;
   remove_profile_picture?: boolean;
   public_match: boolean;

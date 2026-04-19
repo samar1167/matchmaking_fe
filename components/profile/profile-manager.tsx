@@ -33,6 +33,7 @@ import type {
 interface ProfileFormValues {
   first_name: string;
   last_name: string;
+  gender: string;
   public_match: boolean;
   date_of_birth: string;
   time_of_birth: string;
@@ -74,6 +75,7 @@ type MatchPreferenceMethodField =
 const emptyValues: ProfileFormValues = {
   first_name: "",
   last_name: "",
+  gender: "",
   public_match: false,
   date_of_birth: "",
   time_of_birth: "",
@@ -141,6 +143,7 @@ const matchPreferenceMethodChoices: Array<{
 const mapProfileToFormValues = (profile: UserProfile): ProfileFormValues => ({
   first_name: profile.first_name ?? profile.user?.first_name ?? "",
   last_name: profile.last_name ?? profile.user?.last_name ?? "",
+  gender: profile.gender ?? "",
   public_match: Boolean(profile.public_match),
   date_of_birth: profile.date_of_birth ?? "",
   time_of_birth: profile.time_of_birth ?? "",
@@ -233,6 +236,7 @@ const buildProfilePayload = (
 ): CreateProfileRequest | UpdateProfileRequest => ({
   first_name: values.first_name.trim() || undefined,
   last_name: values.last_name.trim() || undefined,
+  gender: values.gender.trim() || undefined,
   public_match: values.public_match,
   profile_picture: profilePicture || undefined,
   remove_profile_picture: removeProfilePicture || undefined,
@@ -843,6 +847,13 @@ export function ProfileManager() {
                     value={values.last_name}
                     onChange={(event) => handleChange("last_name", event.target.value)}
                   />
+                  <SelectInput
+                    label="Gender"
+                    options={genderChoices}
+                    placeholder="Select gender"
+                    value={values.gender}
+                    onChange={(event) => handleChange("gender", event.target.value)}
+                  />
                 </div>
 
                 <div className={`${designSystem.inset} flex flex-col items-center gap-4 p-5`}>
@@ -1201,7 +1212,7 @@ export function ProfileManager() {
                       </p>
                     </div>
                     <div className={`${designSystem.inset} p-4`}>
-                      <p className={designSystem.label}>Gender</p>
+                      <p className={designSystem.label}>Preferred Gender</p>
                       <p className="mt-3 text-lg font-medium text-primary">
                         {displayChoiceValue(matchPreferenceValues.preferred_gender, genderChoices)}
                       </p>
@@ -1265,6 +1276,14 @@ export function ProfileManager() {
                     </p>
                     <p className="mt-3 text-lg font-medium text-primary">
                       {displayValue(values.last_name)}
+                    </p>
+                  </div>
+                  <div className={`${designSystem.inset} p-5`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                      Gender
+                    </p>
+                    <p className="mt-3 text-lg font-medium text-primary">
+                      {displayChoiceValue(profile?.gender, genderChoices)}
                     </p>
                   </div>
                   <div className={`${designSystem.inset} p-5`}>
