@@ -9,6 +9,11 @@ import {
   designSystem,
 } from "@/components/ui/design-system";
 import { SectionCard } from "@/components/ui/section-card";
+import {
+  CompatibilityScoreLine,
+  CompatibilityScoreRing,
+  isNumericCompatibilityValue,
+} from "@/components/ui/compatibility-score";
 import type { StoredCompatibilityResult } from "@/store/resultsStore";
 import type { PlanParameters } from "@/types/plan";
 
@@ -39,15 +44,6 @@ const formatDate = (value?: string) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-};
-
-const scoreRingStyle = (score: number) => {
-  const clampedScore = Math.max(8, Math.min(score, 100));
-  const degrees = (clampedScore / 100) * 360;
-
-  return {
-    background: `conic-gradient(#c07771 ${degrees}deg, rgba(144,18,20,0.12) 0deg)`,
-  };
 };
 
 const isLockedParameter = (key: string, parameters: PlanParameters) => {
@@ -128,16 +124,7 @@ function ResultCard({
     <div className="rounded-[1.65rem] border border-[rgba(144,18,20,0.08)] bg-[rgba(250,250,250,0.86)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <div
-            className="grid h-20 w-20 place-items-center rounded-full p-[6px] shadow-[0_16px_34px_rgba(144,18,20,0.14)]"
-            style={scoreRingStyle(result.score)}
-          >
-            <div className="grid h-full w-full place-items-center rounded-full bg-[rgba(250,250,250,0.96)]">
-              <span className="font-display text-3xl font-semibold text-primary">
-                {Math.round(result.score)}
-              </span>
-            </div>
-          </div>
+          <CompatibilityScoreRing score={result.score} size="sm" />
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">
               Compatibility Score
@@ -147,21 +134,9 @@ function ResultCard({
                 {result.personName}
               </p>
             ) : null}
-            <p className="mt-2 h-2.5 w-40 overflow-hidden rounded-full bg-[rgba(144,18,20,0.12)]">
-              <span
-                className="block h-full rounded-full bg-[linear-gradient(90deg,#c07771_0%,#901214_100%)]"
-                style={{ width: `${Math.max(6, Math.min(result.score, 100))}%` }}
-              />
-            </p>
-            <p className="mt-3 text-3xl font-semibold text-primary">
-              {result.score.toFixed(1)}
-            </p>
           </div>
         </div>
         <div className="sm:text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/42">
-            Compatibility Score
-          </p>
           {result.createdAt ? (
             <p className="mt-3 text-sm text-foreground/55">
               {formatDate(result.createdAt)}
@@ -178,25 +153,34 @@ function ResultCard({
         {result.parameters.length > 0 ? (
           result.parameters.map((parameter) => {
             const locked = shouldBlurParameter(parameter, parameters);
+            const numericValue = Number(parameter.value);
+            const showScoreLine =
+              !locked && isNumericCompatibilityValue(parameter.value);
 
             return (
               <div
                 key={`${result.id}-${parameter.key}`}
                 className="rounded-2xl bg-muted/40 p-4"
               >
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/45">
-                  {parameter.label}
-                </dt>
-                <dd className="mt-3 min-h-12 text-sm font-medium text-foreground">
-                  {locked ? (
-                    <LockedParameterValue
-                      cta="Unlock Full Compatibility"
-                      value={parameter.value}
-                    />
-                  ) : (
-                    parameter.value
-                  )}
-                </dd>
+                {showScoreLine ? (
+                  <CompatibilityScoreLine label={parameter.label} score={numericValue} />
+                ) : (
+                  <>
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/45">
+                      {parameter.label}
+                    </dt>
+                    <dd className="mt-3 min-h-12 text-sm font-medium text-foreground">
+                      {locked ? (
+                        <LockedParameterValue
+                          cta="Unlock Full Compatibility"
+                          value={parameter.value}
+                        />
+                      ) : (
+                        parameter.value
+                      )}
+                    </dd>
+                  </>
+                )}
               </div>
             );
           })
@@ -337,9 +321,6 @@ export function ResultsBoard({
                   <h3 className="mt-3 font-display text-4xl font-semibold tracking-tight text-primary">
                     {group.personName}
                   </h3>
-                  <p className="mt-2 text-sm text-foreground/60">
-                    Highest score: {group.topScore.toFixed(1)}
-                  </p>
                 </div>
               </div>
 

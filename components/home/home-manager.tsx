@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
+import { CompatibilityScoreLine } from "@/components/ui/compatibility-score";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { normalizePlanParameters } from "@/services/planMapper";
@@ -170,18 +171,6 @@ function LockedInsightCard({
     </div>
   );
 }
-
-const scoreTone = (score: number) => {
-  if (score >= 85) {
-    return "text-[#eabfb9]";
-  }
-
-  if (score >= 70) {
-    return "text-[#c07771]";
-  }
-
-  return "text-[#f5d5c8]";
-};
 
 const createPaymentReference = (credits: number) => {
   const suffix =
@@ -741,14 +730,12 @@ export function HomeManager() {
                   Sample Compatibility
                 </p>
                 <p className="mt-4 text-sm text-[#eabfb9]">{previewResult.personName}</p>
-                <div className="mt-6 flex items-end gap-3">
-                  <span className={`font-display text-8xl font-semibold ${scoreTone(previewResult.score)}`}>
-                    {Math.round(previewResult.score)}
-                  </span>
-                  <span className="pb-3 text-sm uppercase tracking-[0.26em] text-[#b2806b]">
-                    Score
-                  </span>
-                </div>
+                <CompatibilityScoreLine
+                  className="mt-6"
+                  label="Compatibility Score"
+                  score={previewResult.score}
+                  tone="dark"
+                />
                 <p className="mt-5 text-sm leading-7 text-[#eabfb9]">
                   {previewResult.summary ?? "This result already indicates enough signal to justify a deeper review."}
                 </p>
@@ -875,13 +862,12 @@ export function HomeManager() {
                       {result.summary ?? "A strong score worth a deeper look."}
                     </p>
                   </div>
-                  <div className="ml-4 shrink-0 text-right">
-                    <p className={`font-display text-4xl font-semibold ${scoreTone(result.score)}`}>
-                      {Math.round(result.score)}
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#b2806b]/80">
-                      Score
-                    </p>
+                  <div className="ml-4 w-44 shrink-0">
+                    <CompatibilityScoreLine
+                      label="Score"
+                      score={result.score}
+                      tone="dark"
+                    />
                   </div>
                 </div>
               ))
@@ -924,10 +910,12 @@ export function HomeManager() {
                         {result.summary ?? "Recent compatibility run completed."}
                       </p>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className={`font-display text-3xl font-semibold ${scoreTone(result.score)}`}>
-                        {Math.round(result.score)}
-                      </p>
+                    <div className="w-40 shrink-0">
+                      <CompatibilityScoreLine
+                        label="Score"
+                        score={result.score}
+                        tone="dark"
+                      />
                       <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#b2806b]/80">
                         {formatTimestamp(result.createdAt)}
                       </p>

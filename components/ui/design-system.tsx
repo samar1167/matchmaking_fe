@@ -42,7 +42,7 @@ export function MetricTile({
   return (
     <div className={cn(designSystem.inset, "p-5", className)}>
       <p className={designSystem.label}>{label}</p>
-      <p className="mt-3 font-display text-5xl font-semibold text-primary">{value}</p>
+      <div className="mt-3 font-display text-5xl font-semibold text-primary">{value}</div>
     </div>
   );
 }

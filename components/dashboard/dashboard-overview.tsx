@@ -250,7 +250,13 @@ export function DashboardOverview() {
             <MetricTile label="Private Users" value={privatePersons.length} />
             <MetricTile
               label="Top Match"
-              value={strongestMatch ? Math.round(strongestMatch.score) : "--"}
+              value={
+                strongestMatch ? (
+                  <span className="block text-3xl leading-tight">{strongestMatch.personName}</span>
+                ) : (
+                  "--"
+                )
+              }
             />
             <MetricTile label="Credits Available" value={availableCredits} />
             <MetricTile label="Saved Checks" value={history.length} />
@@ -313,17 +319,9 @@ export function DashboardOverview() {
               description="Maintain your own birth details and keep premium parameters available for deeper readings."
               action={
                 <div className="flex flex-wrap gap-3">
-                  <Button
-                    aria-pressed={activeDashboardPanel === "profile"}
-                    className={
-                      activeDashboardPanel === "profile"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    onClick={() => openDashboardPanel("profile")}
-                  >
+                  <ActionLink href="/profile" variant="primary" className="rounded-full px-5 py-3">
                     Update profile
-                  </Button>
+                  </ActionLink>
                   <Button
                     aria-pressed={activeDashboardPanel === "credits"}
                     className={
@@ -360,8 +358,14 @@ export function DashboardOverview() {
               className="min-h-[148px]"
             />
             <MetricTile
-              label="Top Match Score"
-              value={strongestMatch ? strongestMatch.score.toFixed(1) : "--"}
+              label="Top Match"
+              value={
+                strongestMatch ? (
+                  <span className="block text-3xl leading-tight">{strongestMatch.personName}</span>
+                ) : (
+                  "--"
+                )
+              }
               className="min-h-[148px]"
             />
           </div>

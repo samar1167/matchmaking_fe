@@ -7,6 +7,7 @@ export interface UserProfile {
   first_name?: string;
   last_name?: string;
   profile_picture?: string | null;
+  public_match?: boolean | null;
   date_of_birth?: string;
   time_of_birth?: string;
   place_of_birth?: string;
@@ -22,6 +23,7 @@ export interface CreateProfileRequest {
   last_name?: string;
   profile_picture?: File | null;
   remove_profile_picture?: boolean;
+  public_match: boolean;
   date_of_birth?: string;
   time_of_birth?: string;
   place_of_birth?: string;

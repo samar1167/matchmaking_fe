@@ -33,6 +33,7 @@ import type {
 interface ProfileFormValues {
   first_name: string;
   last_name: string;
+  public_match: boolean;
   date_of_birth: string;
   time_of_birth: string;
   place_of_birth: string;
@@ -53,21 +54,27 @@ interface MatchPreferenceFormValues {
   preferred_gender: string;
   preferred_age_min: string;
   preferred_age_max: string;
-  preferred_distance_km: string;
   preferred_relationship_intent: string;
   preferred_marital_status: string;
-  modern_methods: string;
-  karmic_glue: string;
-  ancient_methods: string;
-  deal_maker: string;
-  sizzle: string;
+  modern_methods: boolean;
+  karmic_glue: boolean;
+  ancient_methods: boolean;
+  deal_maker: boolean;
+  sizzle: boolean;
 }
 
 type MatchPreferenceValidationErrors = Partial<Record<keyof MatchPreferenceFormValues, string>>;
+type MatchPreferenceMethodField =
+  | "modern_methods"
+  | "karmic_glue"
+  | "ancient_methods"
+  | "deal_maker"
+  | "sizzle";
 
 const emptyValues: ProfileFormValues = {
   first_name: "",
   last_name: "",
+  public_match: false,
   date_of_birth: "",
   time_of_birth: "",
   place_of_birth: "",
@@ -86,14 +93,13 @@ const emptyMatchPreferenceValues: MatchPreferenceFormValues = {
   preferred_gender: "",
   preferred_age_min: "",
   preferred_age_max: "",
-  preferred_distance_km: "",
   preferred_relationship_intent: "",
   preferred_marital_status: "",
-  modern_methods: "",
-  karmic_glue: "",
-  ancient_methods: "",
-  deal_maker: "",
-  sizzle: "",
+  modern_methods: false,
+  karmic_glue: false,
+  ancient_methods: false,
+  deal_maker: false,
+  sizzle: false,
 };
 
 const genderChoices = [
@@ -121,9 +127,21 @@ const maritalStatusChoices = [
   { value: "any", label: "Any" },
 ];
 
+const matchPreferenceMethodChoices: Array<{
+  field: MatchPreferenceMethodField;
+  label: string;
+}> = [
+  { field: "modern_methods", label: "Modern Methods" },
+  { field: "karmic_glue", label: "Karmic Glue" },
+  { field: "ancient_methods", label: "Ancient Methods" },
+  { field: "deal_maker", label: "Deal Maker" },
+  { field: "sizzle", label: "Sizzle" },
+];
+
 const mapProfileToFormValues = (profile: UserProfile): ProfileFormValues => ({
   first_name: profile.first_name ?? profile.user?.first_name ?? "",
   last_name: profile.last_name ?? profile.user?.last_name ?? "",
+  public_match: Boolean(profile.public_match),
   date_of_birth: profile.date_of_birth ?? "",
   time_of_birth: profile.time_of_birth ?? "",
   place_of_birth: profile.place_of_birth ?? "",
@@ -147,14 +165,13 @@ const mapMatchPreferenceToFormValues = (
   preferred_gender: preference?.preferred_gender ?? "",
   preferred_age_min: numberToFormValue(preference?.preferred_age_min),
   preferred_age_max: numberToFormValue(preference?.preferred_age_max),
-  preferred_distance_km: numberToFormValue(preference?.preferred_distance_km),
   preferred_relationship_intent: preference?.preferred_relationship_intent ?? "",
   preferred_marital_status: preference?.preferred_marital_status ?? "",
-  modern_methods: numberToFormValue(preference?.modern_methods),
-  karmic_glue: numberToFormValue(preference?.karmic_glue),
-  ancient_methods: numberToFormValue(preference?.ancient_methods),
-  deal_maker: numberToFormValue(preference?.deal_maker),
-  sizzle: numberToFormValue(preference?.sizzle),
+  modern_methods: Boolean(preference?.modern_methods),
+  karmic_glue: Boolean(preference?.karmic_glue),
+  ancient_methods: Boolean(preference?.ancient_methods),
+  deal_maker: Boolean(preference?.deal_maker),
+  sizzle: Boolean(preference?.sizzle),
 });
 
 const validateProfileForm = (values: ProfileFormValues): ValidationErrors => {
@@ -183,12 +200,6 @@ const validateMatchPreferenceForm = (
   const numericFields: Array<keyof MatchPreferenceFormValues> = [
     "preferred_age_min",
     "preferred_age_max",
-    "preferred_distance_km",
-    "modern_methods",
-    "karmic_glue",
-    "ancient_methods",
-    "deal_maker",
-    "sizzle",
   ];
 
   numericFields.forEach((field) => {
@@ -200,20 +211,16 @@ const validateMatchPreferenceForm = (
   const ageMin = values.preferred_age_min ? Number(values.preferred_age_min) : null;
   const ageMax = values.preferred_age_max ? Number(values.preferred_age_max) : null;
 
-  if (ageMin !== null && ageMin < 0) {
-    errors.preferred_age_min = "Minimum age cannot be negative.";
+  if (ageMin !== null && (ageMin < 18 || ageMin > 120)) {
+    errors.preferred_age_min = "Minimum age must be between 18 and 120.";
   }
 
-  if (ageMax !== null && ageMax < 0) {
-    errors.preferred_age_max = "Maximum age cannot be negative.";
+  if (ageMax !== null && (ageMax < 18 || ageMax > 120)) {
+    errors.preferred_age_max = "Maximum age must be between 18 and 120.";
   }
 
   if (ageMin !== null && ageMax !== null && ageMin > ageMax) {
     errors.preferred_age_max = "Maximum age must be greater than or equal to minimum age.";
-  }
-
-  if (values.preferred_distance_km && Number(values.preferred_distance_km) < 0) {
-    errors.preferred_distance_km = "Distance cannot be negative.";
   }
 
   return errors;
@@ -226,6 +233,7 @@ const buildProfilePayload = (
 ): CreateProfileRequest | UpdateProfileRequest => ({
   first_name: values.first_name.trim() || undefined,
   last_name: values.last_name.trim() || undefined,
+  public_match: values.public_match,
   profile_picture: profilePicture || undefined,
   remove_profile_picture: removeProfilePicture || undefined,
   date_of_birth: values.date_of_birth || undefined,
@@ -249,14 +257,13 @@ const buildMatchPreferencePayload = (
   preferred_gender: optionalText(values.preferred_gender),
   preferred_age_min: optionalNumber(values.preferred_age_min),
   preferred_age_max: optionalNumber(values.preferred_age_max),
-  preferred_distance_km: optionalNumber(values.preferred_distance_km),
   preferred_relationship_intent: optionalText(values.preferred_relationship_intent),
   preferred_marital_status: optionalText(values.preferred_marital_status),
-  modern_methods: optionalNumber(values.modern_methods),
-  karmic_glue: optionalNumber(values.karmic_glue),
-  ancient_methods: optionalNumber(values.ancient_methods),
-  deal_maker: optionalNumber(values.deal_maker),
-  sizzle: optionalNumber(values.sizzle),
+  modern_methods: values.modern_methods,
+  karmic_glue: values.karmic_glue,
+  ancient_methods: values.ancient_methods,
+  deal_maker: values.deal_maker,
+  sizzle: values.sizzle,
 });
 
 const formatServerErrorValue = (value: unknown): string | null => {
@@ -436,7 +443,10 @@ export function ProfileManager() {
     values.latitude && values.longitude ? "Coordinates added" : "Coordinates pending";
   const activeProfilePicture = removeProfilePicture ? null : profilePicturePreviewUrl;
 
-  const handleChange = (field: keyof ProfileFormValues, value: string) => {
+  const handleChange = <Field extends keyof ProfileFormValues>(
+    field: Field,
+    value: ProfileFormValues[Field],
+  ) => {
     setValues((current) => ({
       ...current,
       [field]: value,
@@ -505,9 +515,9 @@ export function ProfileManager() {
     [],
   );
 
-  const handleMatchPreferenceChange = (
-    field: keyof MatchPreferenceFormValues,
-    value: string,
+  const handleMatchPreferenceChange = <Field extends keyof MatchPreferenceFormValues>(
+    field: Field,
+    value: MatchPreferenceFormValues[Field],
   ) => {
     setMatchPreferenceValues((current) => ({
       ...current,
@@ -672,6 +682,12 @@ export function ProfileManager() {
       setMatchPreference(preference);
       setMatchPreferenceValues(mapMatchPreferenceToFormValues(preference));
     } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        setMatchPreference(null);
+        setMatchPreferenceValues(emptyMatchPreferenceValues);
+        return;
+      }
+
       setMatchPreferenceError(
         extractApiErrorMessage(error, "Unable to load match preferences right now."),
       );
@@ -914,6 +930,20 @@ export function ProfileManager() {
                 />
               </div>
 
+              <label className={`${designSystem.inset} flex items-start gap-3 p-5`}>
+                <input
+                  checked={values.public_match}
+                  className="mt-1 h-4 w-4 rounded border-[rgba(144,18,20,0.25)] text-primary accent-primary"
+                  type="checkbox"
+                  onChange={(event) =>
+                    handleChange("public_match", event.target.checked)
+                  }
+                />
+                <span className="text-sm font-medium text-primary">
+                  Allow others to find a match in me
+                </span>
+              </label>
+
               {error ? <AlertMessage className="whitespace-pre-wrap">{error}</AlertMessage> : null}
               {successMessage ? (
                 <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
@@ -1078,7 +1108,8 @@ export function ProfileManager() {
                       error={matchPreferenceErrors.preferred_age_min}
                       inputMode="numeric"
                       label="Preferred Age Min"
-                      min="0"
+                      max="120"
+                      min="18"
                       placeholder="25"
                       type="number"
                       value={matchPreferenceValues.preferred_age_min}
@@ -1090,24 +1121,13 @@ export function ProfileManager() {
                       error={matchPreferenceErrors.preferred_age_max}
                       inputMode="numeric"
                       label="Preferred Age Max"
-                      min="0"
+                      max="120"
+                      min="18"
                       placeholder="35"
                       type="number"
                       value={matchPreferenceValues.preferred_age_max}
                       onChange={(event) =>
                         handleMatchPreferenceChange("preferred_age_max", event.target.value)
-                      }
-                    />
-                    <Input
-                      error={matchPreferenceErrors.preferred_distance_km}
-                      inputMode="decimal"
-                      label="Preferred Distance KM"
-                      min="0"
-                      placeholder="50"
-                      type="number"
-                      value={matchPreferenceValues.preferred_distance_km}
-                      onChange={(event) =>
-                        handleMatchPreferenceChange("preferred_distance_km", event.target.value)
                       }
                     />
                   </div>
@@ -1140,58 +1160,24 @@ export function ProfileManager() {
                   </div>
 
                   <div className="space-y-4">
-                    <p className={designSystem.label}>Compatibility Weights</p>
-                    <div className="grid gap-5 md:grid-cols-5">
-                      <Input
-                        error={matchPreferenceErrors.modern_methods}
-                        inputMode="decimal"
-                        label="Modern Methods"
-                        type="number"
-                        value={matchPreferenceValues.modern_methods}
-                        onChange={(event) =>
-                          handleMatchPreferenceChange("modern_methods", event.target.value)
-                        }
-                      />
-                      <Input
-                        error={matchPreferenceErrors.karmic_glue}
-                        inputMode="decimal"
-                        label="Karmic Glue"
-                        type="number"
-                        value={matchPreferenceValues.karmic_glue}
-                        onChange={(event) =>
-                          handleMatchPreferenceChange("karmic_glue", event.target.value)
-                        }
-                      />
-                      <Input
-                        error={matchPreferenceErrors.ancient_methods}
-                        inputMode="decimal"
-                        label="Ancient Methods"
-                        type="number"
-                        value={matchPreferenceValues.ancient_methods}
-                        onChange={(event) =>
-                          handleMatchPreferenceChange("ancient_methods", event.target.value)
-                        }
-                      />
-                      <Input
-                        error={matchPreferenceErrors.deal_maker}
-                        inputMode="decimal"
-                        label="Deal Maker"
-                        type="number"
-                        value={matchPreferenceValues.deal_maker}
-                        onChange={(event) =>
-                          handleMatchPreferenceChange("deal_maker", event.target.value)
-                        }
-                      />
-                      <Input
-                        error={matchPreferenceErrors.sizzle}
-                        inputMode="decimal"
-                        label="Sizzle"
-                        type="number"
-                        value={matchPreferenceValues.sizzle}
-                        onChange={(event) =>
-                          handleMatchPreferenceChange("sizzle", event.target.value)
-                        }
-                      />
+                    <p className={designSystem.label}>Compatibility Methods</p>
+                    <div className="grid gap-3 md:grid-cols-5">
+                      {matchPreferenceMethodChoices.map(({ field, label }) => (
+                        <label
+                          className={`${designSystem.inset} flex min-h-20 items-start gap-3 p-4`}
+                          key={field}
+                        >
+                          <input
+                            checked={matchPreferenceValues[field]}
+                            className="mt-1 h-4 w-4 rounded border-[rgba(144,18,20,0.25)] text-primary accent-primary"
+                            type="checkbox"
+                            onChange={(event) =>
+                              handleMatchPreferenceChange(field, event.target.checked)
+                            }
+                          />
+                          <span className="text-sm font-medium text-primary">{label}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
@@ -1206,7 +1192,7 @@ export function ProfileManager() {
                     </AlertMessage>
                   ) : null}
 
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className={`${designSystem.inset} p-4`}>
                       <p className={designSystem.label}>Age Range</p>
                       <p className="mt-3 text-lg font-medium text-primary">
@@ -1218,12 +1204,6 @@ export function ProfileManager() {
                       <p className={designSystem.label}>Gender</p>
                       <p className="mt-3 text-lg font-medium text-primary">
                         {displayChoiceValue(matchPreferenceValues.preferred_gender, genderChoices)}
-                      </p>
-                    </div>
-                    <div className={`${designSystem.inset} p-4`}>
-                      <p className={designSystem.label}>Distance KM</p>
-                      <p className="mt-3 text-lg font-medium text-primary">
-                        {displayNumberValue(matchPreferenceValues.preferred_distance_km)}
                       </p>
                     </div>
                   </div>
@@ -1327,6 +1307,18 @@ export function ProfileManager() {
                       {displayValue(values.longitude)}
                     </p>
                   </div>
+                  <label className={`${designSystem.inset} flex items-start gap-3 p-5 md:col-span-2`}>
+                    <input
+                      checked={values.public_match}
+                      className="mt-1 h-4 w-4 rounded border-[rgba(144,18,20,0.25)] text-primary accent-primary"
+                      disabled
+                      readOnly
+                      type="checkbox"
+                    />
+                    <span className="text-sm font-medium text-primary">
+                      Allow others to find a match in me
+                    </span>
+                  </label>
                 </div>
               </div>
 
