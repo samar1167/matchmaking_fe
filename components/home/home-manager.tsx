@@ -9,20 +9,23 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import { CompatibilityScoreLine } from "@/components/ui/compatibility-score";
 import { compatibilityService } from "@/services/compatibilityService";
+import { connectionService } from "@/services/connectionService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { normalizePlanParameters } from "@/services/planMapper";
 import { planService } from "@/services/planService";
 import { privatePersonsService } from "@/services/privatePersonsService";
 import { profileService } from "@/services/profileService";
+import { userMatchService } from "@/services/userMatchService";
 import { useAuthStore } from "@/store/authStore";
 import { usePlanStore } from "@/store/planStore";
 import { useResultsStore, type StoredCompatibilityResult } from "@/store/resultsStore";
 import type { ApiErrorResponse } from "@/types/common";
+import type { Connection } from "@/types/connection";
 import type { PrivatePerson } from "@/types/private-persons";
 import type { PlanParameters } from "@/types/plan";
 import type { UserProfile } from "@/types/profile";
+import type { UserMatch } from "@/types/user-match";
 
-const purchaseOptions = [5, 15, 30];
 const heroRotatingWords = ["sex", "love", "friendship", "time"];
 
 type ServerMessagePayload =
@@ -111,6 +114,65 @@ const formatTimestamp = (value?: string) => {
     timeStyle: "short",
   }).format(date);
 };
+
+const getProfileDisplayName = (profile: UserProfile) => {
+  const firstName = profile.first_name ?? profile.user?.first_name ?? "";
+  const lastName = profile.last_name ?? profile.user?.last_name ?? "";
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  return fullName || profile.user?.username || `Profile #${profile.id}`;
+};
+
+const getProfileInitials = (profile: UserProfile) => {
+  const name = getProfileDisplayName(profile);
+  const initials = name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "UM";
+};
+
+const getConnectionPeer = (connection: Connection, currentProfileId?: number) => {
+  if (!connection.requester || !connection.receiver) {
+    return connection;
+  }
+
+  if (!currentProfileId) {
+    return connection.requester;
+  }
+
+  return connection.requester.id === currentProfileId
+    ? connection.receiver
+    : connection.requester;
+};
+
+const getConnectionForProfile = (
+  connections: Connection[],
+  profileId?: number | string,
+) => {
+  if (!profileId) {
+    return null;
+  }
+
+  const targetProfileId = String(profileId);
+
+  return (
+    connections.find(
+      (connection) =>
+        String(connection.id) === targetProfileId ||
+        String(connection.requester?.id) === targetProfileId ||
+        String(connection.receiver?.id) === targetProfileId,
+    ) ?? null
+  );
+};
+
+const withDefaultConnectionStatus = (
+  connections: Connection[],
+  status: Connection["status"],
+) => connections.map((connection) => ({ ...connection, status: connection.status ?? status }));
 
 const isLockedParameter = (key: string, parameters: PlanParameters) => {
   const direct = parameters[key];
@@ -273,7 +335,6 @@ export function HomeManager() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
-  const credits = usePlanStore((state) => state.credits);
   const parameters = usePlanStore((state) => state.parameters);
   const setCredits = usePlanStore((state) => state.setCredits);
   const setParameters = usePlanStore((state) => state.setParameters);
@@ -283,13 +344,19 @@ export function HomeManager() {
   const [privatePersons, setPrivatePersons] = useState<PrivatePerson[]>([]);
   const [topMatches, setTopMatches] = useState<StoredCompatibilityResult[]>([]);
   const [history, setHistory] = useState<StoredCompatibilityResult[]>([]);
+  const [userMatches, setUserMatches] = useState<UserMatch[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [receivedConnectionRequests, setReceivedConnectionRequests] = useState<Connection[]>([]);
   const [selectedPersonId, setSelectedPersonId] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(token));
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [userMatchesLoadError, setUserMatchesLoadError] = useState<string | null>(null);
+  const [connectionsLoadError, setConnectionsLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isRunningCheck, setIsRunningCheck] = useState(false);
   const [isPurchasingCredits, setIsPurchasingCredits] = useState<number | null>(null);
+  const [pendingConnectionAction, setPendingConnectionAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -301,6 +368,8 @@ export function HomeManager() {
       try {
         setIsLoading(true);
         setLoadError(null);
+        setUserMatchesLoadError(null);
+        setConnectionsLoadError(null);
 
         const [
           topMatchesResponse,
@@ -309,6 +378,9 @@ export function HomeManager() {
           profileResponse,
           currentPlanResponse,
           parameterResponse,
+          userMatchesResponse,
+          connectionsResponse,
+          receivedConnectionsResponse,
         ] = await Promise.all([
           compatibilityService.topMatches(),
           compatibilityService.history(),
@@ -316,6 +388,18 @@ export function HomeManager() {
           profileService.getMe(),
           planService.getCurrent(),
           planService.getParameters(),
+          userMatchService.list().catch(() => {
+            setUserMatchesLoadError("Unable to load user matches right now.");
+            return null;
+          }),
+          connectionService.list().catch(() => {
+            setConnectionsLoadError("Unable to load connections right now.");
+            return null;
+          }),
+          connectionService.received().catch(() => {
+            setConnectionsLoadError("Unable to load connection requests right now.");
+            return null;
+          }),
         ]);
 
         const nextPrivatePersons = privatePersonsResponse.results ?? [];
@@ -327,6 +411,16 @@ export function HomeManager() {
         setProfile(nextProfile);
         setCredits(currentPlanResponse.credits ?? 0);
         setParameters(normalizePlanParameters(parameterResponse.parameters));
+        setUserMatches(userMatchesResponse?.results ?? []);
+        setConnections(
+          withDefaultConnectionStatus(connectionsResponse?.results ?? [], "accepted"),
+        );
+        setReceivedConnectionRequests(
+          withDefaultConnectionStatus(
+            receivedConnectionsResponse?.results ?? [],
+            "pending",
+          ),
+        );
 
         if (nextPrivatePersons[0]?.id) {
           setSelectedPersonId(String(nextPrivatePersons[0].id));
@@ -345,6 +439,24 @@ export function HomeManager() {
   );
 
   const previewResult = topMatches[0] ?? history[0] ?? null;
+  const topUserMatches = useMemo(
+    () =>
+      [...userMatches]
+        .sort((first, second) => {
+          if (first.rank !== second.rank) {
+            return first.rank - second.rank;
+          }
+
+          return second.score - first.score;
+        })
+        .slice(0, 3),
+    [userMatches],
+  );
+  const pendingReceivedConnectionRequests = useMemo(
+    () =>
+      receivedConnectionRequests.filter((connection) => connection.status !== "accepted"),
+    [receivedConnectionRequests],
+  );
   const visiblePreviewParameters = useMemo(() => {
     if (!previewResult) {
       return [];
@@ -370,19 +482,19 @@ export function HomeManager() {
     return previewResult.parameters.slice(2, 5);
   }, [parameters, previewResult]);
 
-  const urgencyMessage = useMemo(() => {
-    if (credits <= 0) {
-      return "Unlock full compatibility analysis";
-    }
-
-    if (credits <= 2) {
-      return "You're running low on insights";
-    }
-
-    return "You have room for deeper comparison runs";
-  }, [credits]);
-
   const greetingName = user?.username || user?.email || "Welcome back";
+
+  const refreshConnections = async () => {
+    const [connectionsResponse, receivedConnectionsResponse] = await Promise.all([
+      connectionService.list(),
+      connectionService.received(),
+    ]);
+
+    setConnections(withDefaultConnectionStatus(connectionsResponse.results ?? [], "accepted"));
+    setReceivedConnectionRequests(
+      withDefaultConnectionStatus(receivedConnectionsResponse.results ?? [], "pending"),
+    );
+  };
 
   const handleRunCompatibility = async () => {
     if (!profile?.id) {
@@ -442,6 +554,55 @@ export function HomeManager() {
       setActionError("Unable to purchase credits right now.");
     } finally {
       setIsPurchasingCredits(null);
+    }
+  };
+
+  const handleConnectionRequest = async (matchedUser: UserProfile) => {
+    const matchedProfileId = matchedUser.id;
+
+    try {
+      setPendingConnectionAction(`request-${matchedProfileId}`);
+      setActionError(null);
+      setActionMessage(null);
+
+      await connectionService.request(matchedProfileId);
+      await refreshConnections();
+      setActionMessage("Connection request sent.");
+    } catch (error) {
+      setActionError(
+        extractActionErrorMessage(error, "Unable to send connection request right now."),
+      );
+    } finally {
+      setPendingConnectionAction(null);
+    }
+  };
+
+  const handleConnectionAction = async (
+    connection: Connection,
+    action: "accept" | "decline" | "cancel" | "disconnect",
+  ) => {
+    try {
+      setPendingConnectionAction(`${action}-${connection.id}`);
+      setActionError(null);
+      setActionMessage(null);
+
+      await connectionService[action](connection.id);
+      await refreshConnections();
+      setActionMessage(
+        action === "accept"
+          ? "Connection request accepted."
+          : action === "decline"
+            ? "Connection request declined."
+            : action === "cancel"
+              ? "Connection request cancelled."
+              : "Connection disconnected.",
+      );
+    } catch (error) {
+      setActionError(
+        extractActionErrorMessage(error, "Unable to update connection right now."),
+      );
+    } finally {
+      setPendingConnectionAction(null);
     }
   };
 
@@ -512,13 +673,13 @@ export function HomeManager() {
       actions={
         <>
           <MiniActionLink href="/dashboard">Dashboard</MiniActionLink>
+          <MiniActionLink href="/connections">Connections</MiniActionLink>
           <MiniActionLink href="/results">Results</MiniActionLink>
           <LogoutButton />
         </>
       }
     >
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-        <Surface className="overflow-hidden">
+      <Surface className="overflow-hidden">
           <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr] xl:items-end">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-[#eabfb9]">
@@ -645,59 +806,228 @@ export function HomeManager() {
           </div>
         </Surface>
 
-        <div className="space-y-8">
-          <Surface>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f5d5c8]">
-              Credit Status
-            </p>
-            <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
-              <p className="text-sm text-[#eabfb9]">Remaining credits</p>
-              <p className="mt-3 font-display text-6xl font-semibold text-white">{credits}</p>
-              <p className="mt-4 text-sm leading-6 text-[#eabfb9]">{urgencyMessage}</p>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {purchaseOptions.map((creditAmount) => (
-                <button
-                  key={creditAmount}
-                  className="flex w-full items-center justify-between rounded-2xl border border-[#f5d5c8]/20 bg-[linear-gradient(135deg,rgba(192,119,113,0.14)_0%,rgba(127,83,62,0.86)_100%)] px-4 py-4 text-left transition hover:border-[#f5d5c8]/40 hover:bg-[linear-gradient(135deg,rgba(192,119,113,0.2)_0%,rgba(127,83,62,0.92)_100%)] disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isPurchasingCredits !== null}
-                  type="button"
-                  onClick={() => handlePurchaseCredits(creditAmount)}
-                >
-                  <span>
-                    <span className="block text-sm font-semibold text-white">
-                      Buy {creditAmount} credits
-                    </span>
-                    <span className="mt-1 block text-sm text-[#eabfb9]">
-                      Keep deeper readings available without interrupting your flow.
-                    </span>
-                  </span>
-                  <span className="rounded-full bg-[#f5d5c8] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#0c0d0a]">
-                    {isPurchasingCredits === creditAmount ? "Processing" : "Buy Credits"}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Surface>
-
-          <Surface>
+      <Surface>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#eabfb9]">
-              Repeat Usage
+              Top User Matches
             </p>
-            <div className="mt-5 space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-medium text-white">Top matches tracked</p>
-                <p className="mt-2 text-3xl font-semibold text-white">{topMatches.length}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-medium text-white">Recent checks stored</p>
-                <p className="mt-2 text-3xl font-semibold text-white">{history.length}</p>
-              </div>
-            </div>
-          </Surface>
+            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">
+              Highest ranked public matches.
+            </h2>
+          </div>
         </div>
-      </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {isLoading ? (
+            <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm text-[#eabfb9] md:col-span-3">
+              Loading user matches...
+            </div>
+          ) : userMatchesLoadError ? (
+            <div className="rounded-2xl border border-[#a22e34]/35 bg-[#901214]/15 p-5 text-sm text-[#f5d5c8] md:col-span-3">
+              {userMatchesLoadError}
+            </div>
+          ) : topUserMatches.length > 0 ? (
+            topUserMatches.map((match) => {
+              const matchedUser = match.matched_user;
+              const matchedProfileId = matchedUser.id;
+              const imageUrl = matchedUser.profile_picture ?? matchedUser.user?.profile_picture;
+              const receivedConnection = getConnectionForProfile(
+                receivedConnectionRequests,
+                matchedProfileId,
+              );
+              const existingConnection =
+                receivedConnection ?? getConnectionForProfile(connections, matchedProfileId);
+              const isAcceptedConnection = existingConnection?.status === "accepted";
+              const isPendingConnection = existingConnection?.status === "pending";
+              const isReceivedPendingConnection =
+                receivedConnection?.status === "pending" ||
+                (existingConnection?.receiver?.id === profile?.id && isPendingConnection);
+
+              return (
+                <div
+                  key={match.id}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      {imageUrl ? (
+                        <img
+                          alt=""
+                          className="h-12 w-12 shrink-0 rounded-full border border-[#eabfb9]/20 object-cover"
+                          src={imageUrl}
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#eabfb9]/20 bg-[#f5d5c8]/10 text-sm font-semibold text-[#f5d5c8]">
+                          {getProfileInitials(matchedUser)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-white">
+                          {getProfileDisplayName(matchedUser)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 space-y-2 text-sm leading-6 text-[#eabfb9]">
+                    {matchedUser.gender ? <p>{matchedUser.gender}</p> : null}
+                    {matchedUser.date_of_birth ? <p>{matchedUser.date_of_birth}</p> : null}
+                    {matchedUser.place_of_birth ? <p>{matchedUser.place_of_birth}</p> : null}
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {isAcceptedConnection && existingConnection ? (
+                      <>
+                        <span className="inline-flex items-center rounded-full border border-[#eabfb9]/20 bg-[#eabfb9]/10 px-3 py-2 text-xs font-semibold text-[#f5d5c8]">
+                          Connected
+                        </span>
+                        <Button
+                          className="px-4 py-2 text-xs"
+                          disabled={
+                            pendingConnectionAction === `disconnect-${existingConnection.id}`
+                          }
+                          variant="ghost"
+                          onClick={() => handleConnectionAction(existingConnection, "disconnect")}
+                        >
+                          {pendingConnectionAction === `disconnect-${existingConnection.id}`
+                            ? "Disconnecting..."
+                            : "Disconnect"}
+                        </Button>
+                      </>
+                    ) : isReceivedPendingConnection && existingConnection ? (
+                      <>
+                        <Button
+                          className="px-4 py-2 text-xs"
+                          disabled={pendingConnectionAction === `accept-${existingConnection.id}`}
+                          onClick={() => handleConnectionAction(existingConnection, "accept")}
+                        >
+                          {pendingConnectionAction === `accept-${existingConnection.id}`
+                            ? "Accepting..."
+                            : "Accept"}
+                        </Button>
+                        <Button
+                          className="px-4 py-2 text-xs"
+                          disabled={pendingConnectionAction === `decline-${existingConnection.id}`}
+                          variant="ghost"
+                          onClick={() => handleConnectionAction(existingConnection, "decline")}
+                        >
+                          {pendingConnectionAction === `decline-${existingConnection.id}`
+                            ? "Declining..."
+                            : "Decline"}
+                        </Button>
+                      </>
+                    ) : isPendingConnection && existingConnection ? (
+                      <Button
+                        className="px-4 py-2 text-xs"
+                        disabled={pendingConnectionAction === `cancel-${existingConnection.id}`}
+                        variant="ghost"
+                        onClick={() => handleConnectionAction(existingConnection, "cancel")}
+                      >
+                        {pendingConnectionAction === `cancel-${existingConnection.id}`
+                          ? "Cancelling..."
+                          : "Request Sent"}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="px-4 py-2 text-xs"
+                        disabled={
+                          Boolean(connectionsLoadError) ||
+                          pendingConnectionAction === `request-${matchedProfileId}`
+                        }
+                        onClick={() => handleConnectionRequest(matchedUser)}
+                      >
+                        {connectionsLoadError
+                          ? "Unavailable"
+                          : pendingConnectionAction === `request-${matchedProfileId}`
+                          ? "Connecting..."
+                          : "Connect"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm leading-7 text-[#eabfb9] md:col-span-3">
+              UserMatch records will appear here once the API returns matched users.
+            </div>
+          )}
+        </div>
+      </Surface>
+
+      <Surface>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#eabfb9]">
+              Connection Requests
+            </p>
+            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">
+              Review people who want to connect.
+            </h2>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4">
+          {isLoading ? (
+            <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm text-[#eabfb9]">
+              Loading connection requests...
+            </div>
+          ) : connectionsLoadError ? (
+            <div className="rounded-2xl border border-[#a22e34]/35 bg-[#901214]/15 p-5 text-sm text-[#f5d5c8]">
+              {connectionsLoadError}
+            </div>
+          ) : pendingReceivedConnectionRequests.length > 0 ? (
+            pendingReceivedConnectionRequests.map((connection) => {
+              const peer = getConnectionPeer(connection, profile?.id);
+
+              return (
+                <div
+                  key={connection.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-4"
+                >
+                  <div>
+                    <p className="text-base font-semibold text-white">
+                      {getProfileDisplayName(peer)}
+                    </p>
+                    {peer.place_of_birth ? (
+                      <p className="mt-2 text-sm text-[#eabfb9]">{peer.place_of_birth}</p>
+                    ) : null}
+                    <p className="mt-2 text-sm text-[#eabfb9]">
+                      Sent {formatTimestamp(connection.requested_at)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      className="px-4 py-2 text-xs"
+                      disabled={pendingConnectionAction === `accept-${connection.id}`}
+                      onClick={() => handleConnectionAction(connection, "accept")}
+                    >
+                      {pendingConnectionAction === `accept-${connection.id}`
+                        ? "Accepting..."
+                        : "Accept"}
+                    </Button>
+                    <Button
+                      className="px-4 py-2 text-xs"
+                      disabled={pendingConnectionAction === `decline-${connection.id}`}
+                      variant="ghost"
+                      onClick={() => handleConnectionAction(connection, "decline")}
+                    >
+                      {pendingConnectionAction === `decline-${connection.id}`
+                        ? "Declining..."
+                        : "Decline"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm leading-7 text-[#eabfb9]">
+              No pending connection requests.
+            </div>
+          )}
+        </div>
+      </Surface>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_0.85fr]">
         <Surface>
@@ -828,109 +1158,6 @@ export function HomeManager() {
         </Surface>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Surface>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#eabfb9]">
-                Best Matches
-              </p>
-              <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">
-                Highest scoring comparisons.
-              </h2>
-            </div>
-            <MiniActionLink href="/results">View all results</MiniActionLink>
-          </div>
-
-          <div className="mt-6 grid gap-4">
-            {isLoading ? (
-              <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm text-[#eabfb9]">
-                Loading top matches...
-              </div>
-            ) : topMatches.length > 0 ? (
-              topMatches.slice(0, 4).map((result, index) => (
-                <div
-                  key={result.id}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4"
-                >
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#b2806b]">
-                      Top Match #{index + 1}
-                    </p>
-                    <p className="mt-2 text-lg font-semibold text-white">{result.personName}</p>
-                    <p className="mt-2 text-sm leading-6 text-[#eabfb9]">
-                      {result.summary ?? "A strong score worth a deeper look."}
-                    </p>
-                  </div>
-                  <div className="ml-4 w-44 shrink-0">
-                    <CompatibilityScoreLine
-                      label="Score"
-                      score={result.score}
-                      tone="dark"
-                    />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm leading-7 text-[#eabfb9]">
-                Top matches will appear after the backend returns scored comparisons.
-              </div>
-            )}
-          </div>
-        </Surface>
-
-        <Surface>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#eabfb9]">
-                Recent Activity
-              </p>
-              <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">
-                Keep the engagement loop moving.
-              </h2>
-            </div>
-            <MiniActionLink href="/compatibility">Run another check</MiniActionLink>
-          </div>
-
-          <div className="mt-6 space-y-4">
-            {isLoading ? (
-              <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm text-[#eabfb9]">
-                Loading recent compatibility history...
-              </div>
-            ) : history.length > 0 ? (
-              history.slice(0, 5).map((result) => (
-                <div
-                  key={result.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{result.personName}</p>
-                      <p className="mt-2 text-sm leading-6 text-[#eabfb9]">
-                        {result.summary ?? "Recent compatibility run completed."}
-                      </p>
-                    </div>
-                    <div className="w-40 shrink-0">
-                      <CompatibilityScoreLine
-                        label="Score"
-                        score={result.score}
-                        tone="dark"
-                      />
-                      <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#b2806b]/80">
-                        {formatTimestamp(result.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-white/12 bg-white/5 p-5 text-sm leading-7 text-[#eabfb9]">
-                No recent checks yet. Use the hero action to start building activity history.
-              </div>
-            )}
-          </div>
-        </Surface>
-      </div>
     </HomeShell>
   );
 }

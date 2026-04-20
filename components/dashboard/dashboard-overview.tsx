@@ -231,6 +231,7 @@ export function DashboardOverview() {
       description="Keep private profiles, credits, recent compatibility activity, and strongest matches together in one dashboard built for repeated matchmaking workflows."
       actions={
         <>
+          <ActionLink href="/connections">Connections</ActionLink>
           <ActionLink href="/private-persons">Private User</ActionLink>
           <ActionLink href="/compatibility" variant="primary">
             Run compatibility

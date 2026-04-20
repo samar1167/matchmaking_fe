@@ -39,9 +39,6 @@ export function PrivatePersonCard({
           <h3 className="mt-3 font-display text-3xl font-semibold tracking-tight text-primary">
             {privatePerson.name}
           </h3>
-          <p className="mt-2 text-sm text-foreground/62">
-            Birth profile details for private matching records.
-          </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={onEdit} variant="secondary">
