@@ -1,4 +1,5 @@
 export { authService } from "@/services/authService";
+export { chatService } from "@/services/chatService";
 export { compatibilityService } from "@/services/compatibilityService";
 export { connectionService } from "@/services/connectionService";
 export { matchPreferencesService } from "@/services/matchPreferencesService";

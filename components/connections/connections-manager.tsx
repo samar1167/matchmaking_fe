@@ -2,6 +2,7 @@
 
 import { isAxiosError } from "axios";
 import { useEffect, useMemo, useState } from "react";
+import { ChatDialog } from "@/components/chat/chat-dialog";
 import { AppScaffold } from "@/components/layout/app-scaffold";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
   designSystem,
 } from "@/components/ui/design-system";
 import { SectionCard } from "@/components/ui/section-card";
+import { useChatConversationUnreadCounts } from "@/hooks/useChatNotifications";
 import { cn } from "@/lib/cn";
 import { connectionService } from "@/services/connectionService";
 import { profileService } from "@/services/profileService";
@@ -309,6 +311,9 @@ export function ConnectionsManager() {
   const [receivedRequestsPage, setReceivedRequestsPage] = useState(1);
   const [sentRequestsPage, setSentRequestsPage] = useState(1);
   const [suggestionsPage, setSuggestionsPage] = useState(1);
+  const [chatConnection, setChatConnection] = useState<Connection | null>(null);
+  const { getUnreadForConnection, markConversationRead } =
+    useChatConversationUnreadCounts();
 
   const refreshConnections = async () => {
     const [acceptedResponse, receivedResponse, sentResponse] = await Promise.all([
@@ -486,8 +491,8 @@ export function ConnectionsManager() {
       <div className="grid gap-8">
         <SectionCard
           eyebrow="Connections"
-          title="Accepted connections"
-          description="People who have already accepted a connection with your public profile."
+          title=""
+          description=""
         >
           <div className="grid gap-4">
             {isLoading ? <EmptyState>Loading accepted connections...</EmptyState> : null}
@@ -495,28 +500,48 @@ export function ConnectionsManager() {
               <EmptyState>No accepted connections yet.</EmptyState>
             ) : null}
             {!isLoading
-              ? paginatedConnections.map((connection) => (
-                  <ConnectionRow
-                    key={connection.id}
-                    connection={connection}
-                    currentProfileId={currentProfile?.id}
-                    detail={`Connected ${formatTimestamp(
-                      connection.responded_at ?? connection.updated_at,
-                    )}`}
-                    actions={
-                      <Button
-                        className="px-4 py-2 text-xs"
-                        disabled={pendingAction === `disconnect-${connection.id}`}
-                        variant="ghost"
-                        onClick={() => handleConnectionAction(connection, "disconnect")}
-                      >
-                        {pendingAction === `disconnect-${connection.id}`
-                          ? "Disconnecting..."
-                          : "Disconnect"}
-                      </Button>
-                    }
-                  />
-                ))
+              ? paginatedConnections.map((connection) => {
+                  const unreadCount = getUnreadForConnection(connection.id);
+                  const visibleUnreadCount =
+                    unreadCount > 99 ? "99+" : String(unreadCount);
+
+                  return (
+                    <ConnectionRow
+                      key={connection.id}
+                      connection={connection}
+                      currentProfileId={currentProfile?.id}
+                      detail={`Connected ${formatTimestamp(
+                        connection.responded_at ?? connection.updated_at,
+                      )}`}
+                      actions={
+                        <>
+                          <Button
+                            className="relative px-4 py-2 text-xs"
+                            disabled={pendingAction === `disconnect-${connection.id}`}
+                            onClick={() => setChatConnection(connection)}
+                          >
+                            Chat
+                            {unreadCount > 0 ? (
+                              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border border-[#fafafa] bg-[#901214] px-1.5 text-[10px] font-bold leading-none text-[#fafafa] shadow-[0_8px_18px_rgba(12,13,10,0.18)]">
+                                {visibleUnreadCount}
+                              </span>
+                            ) : null}
+                          </Button>
+                          <Button
+                            className="px-4 py-2 text-xs"
+                            disabled={pendingAction === `disconnect-${connection.id}`}
+                            variant="ghost"
+                            onClick={() => handleConnectionAction(connection, "disconnect")}
+                          >
+                            {pendingAction === `disconnect-${connection.id}`
+                              ? "Disconnecting..."
+                              : "Disconnect"}
+                          </Button>
+                        </>
+                      }
+                    />
+                  );
+                })
               : null}
           </div>
           <PaginationControls
@@ -528,9 +553,9 @@ export function ConnectionsManager() {
         </SectionCard>
 
         <SectionCard
-          eyebrow="Requests"
-          title="Connection requests"
-          description="Accept or decline incoming requests, and cancel outgoing requests that are still pending."
+          eyebrow="Connection Requests"
+          title=""
+          description=""
         >
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
@@ -627,9 +652,9 @@ export function ConnectionsManager() {
         </SectionCard>
 
         <SectionCard
-          eyebrow="Suggestions"
-          title="Suggested matches"
-          description="Public user matches ranked by the API. Send a connection request when a suggestion looks promising."
+          eyebrow="Suggested Match for you"
+          title=""
+          description=""
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {isLoading ? (
@@ -717,6 +742,14 @@ export function ConnectionsManager() {
           />
         </SectionCard>
       </div>
+      <ChatDialog
+        currentProfileId={currentProfile?.id}
+        currentUserId={currentProfile?.user?.id}
+        initialConnection={chatConnection}
+        open={Boolean(chatConnection)}
+        onConversationRead={markConversationRead}
+        onClose={() => setChatConnection(null)}
+      />
     </AppScaffold>
   );
 }

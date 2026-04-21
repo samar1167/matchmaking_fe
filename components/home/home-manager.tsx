@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import { CompatibilityScoreLine } from "@/components/ui/compatibility-score";
+import { useChatTotalUnreadCount } from "@/hooks/useChatNotifications";
 import { compatibilityService } from "@/services/compatibilityService";
 import { connectionService } from "@/services/connectionService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
@@ -287,24 +288,33 @@ function Surface({
 }
 
 function MiniActionLink({
+  badge,
   href,
   children,
   tone = "default",
 }: {
+  badge?: number;
   href: string;
   children: ReactNode;
   tone?: "default" | "gold";
 }) {
+  const visibleBadge = badge && badge > 0 ? (badge > 99 ? "99+" : String(badge)) : null;
+
   return (
     <Link
       href={href}
-      className={`inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+      className={`relative inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold transition ${
         tone === "gold"
           ? "border border-[#f5d5c8]/45 bg-[#f5d5c8] text-[#0c0d0a] hover:bg-[#eabfb9]"
           : "border border-white/12 bg-white/6 text-white hover:border-[#f5d5c8]/45 hover:bg-white/10"
       }`}
     >
       {children}
+      {visibleBadge ? (
+        <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border border-[#fafafa] bg-[#901214] px-1.5 text-[10px] font-bold leading-none text-[#fafafa] shadow-[0_8px_18px_rgba(12,13,10,0.24)]">
+          {visibleBadge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -335,6 +345,7 @@ export function HomeManager() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
+  const totalUnreadCount = useChatTotalUnreadCount();
   const parameters = usePlanStore((state) => state.parameters);
   const setCredits = usePlanStore((state) => state.setCredits);
   const setParameters = usePlanStore((state) => state.setParameters);
@@ -673,7 +684,9 @@ export function HomeManager() {
       actions={
         <>
           <MiniActionLink href="/dashboard">Dashboard</MiniActionLink>
-          <MiniActionLink href="/connections">Connections</MiniActionLink>
+          <MiniActionLink href="/connections" badge={totalUnreadCount}>
+            Connections
+          </MiniActionLink>
           <MiniActionLink href="/results">Results</MiniActionLink>
           <LogoutButton />
         </>
@@ -810,11 +823,8 @@ export function HomeManager() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#eabfb9]">
-              Top User Matches
+              Suggested Match for you
             </p>
-            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">
-              Highest ranked public matches.
-            </h2>
           </div>
         </div>
 
@@ -962,9 +972,6 @@ export function HomeManager() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#eabfb9]">
               Connection Requests
             </p>
-            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">
-              Review people who want to connect.
-            </h2>
           </div>
         </div>
 
