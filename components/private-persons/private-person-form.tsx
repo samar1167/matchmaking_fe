@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
   CreatePrivatePersonRequest,
@@ -57,10 +56,6 @@ const validatePrivatePersonForm = (
     errors.date_of_birth = "Date of birth cannot be in the future.";
   }
 
-  if (!values.time_of_birth) {
-    errors.time_of_birth = "Time of birth is required.";
-  }
-
   if (!values.place_of_birth.trim()) {
     errors.place_of_birth = "Place of birth is required.";
   }
@@ -112,7 +107,7 @@ export function PrivatePersonForm({
       await onSubmit({
         name: values.name.trim(),
         date_of_birth: values.date_of_birth,
-        time_of_birth: values.time_of_birth,
+        time_of_birth: values.time_of_birth || undefined,
         place_of_birth: values.place_of_birth.trim(),
       });
 
@@ -144,7 +139,7 @@ export function PrivatePersonForm({
         />
 
         <Input
-          label="Time of Birth"
+          label="Time of Birth (Optional)"
           type="time"
           value={values.time_of_birth}
           onChange={(event) => handleChange("time_of_birth", event.target.value)}
@@ -161,13 +156,22 @@ export function PrivatePersonForm({
       />
 
       <div className="flex flex-wrap gap-3">
-        <Button disabled={isSubmitting} type="submit">
+        <button
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(144,18,20,0.14)] transition hover:bg-[#961116] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSubmitting}
+          type="submit"
+        >
           {submitLabel}
-        </Button>
-        {mode === "edit" && onCancel ? (
-          <Button disabled={isSubmitting} onClick={onCancel} variant="secondary">
+        </button>
+        {onCancel ? (
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSubmitting}
+            type="button"
+            onClick={onCancel}
+          >
             Cancel
-          </Button>
+          </button>
         ) : null}
       </div>
     </form>

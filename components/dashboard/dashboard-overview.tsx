@@ -1,37 +1,18 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { AppScaffold } from "@/components/layout/app-scaffold";
-import { ResultsBoard } from "@/components/results/results-board";
-import { Button } from "@/components/ui/button";
-import {
-  ActionLink,
-  AlertMessage,
-  BodyText,
-  EmptyState,
-  MetricTile,
-  designSystem,
-} from "@/components/ui/design-system";
-import { SectionCard } from "@/components/ui/section-card";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { authService } from "@/services/authService";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { planService } from "@/services/planService";
 import { privatePersonsService } from "@/services/privatePersonsService";
-import { usePlanStore } from "@/store/planStore";
+import { useAuthStore } from "@/store/authStore";
 import type { StoredCompatibilityResult } from "@/store/resultsStore";
-import type { PaymentHistoryItem, PlanMeResponse } from "@/types/plan";
+import type { PlanMeResponse } from "@/types/plan";
 import type { PrivatePerson } from "@/types/private-persons";
-
-const purchaseOptions = [5, 15, 30];
-
-type DashboardPanel =
-  | "private-users"
-  | "top-matches"
-  | "compatibility"
-  | "history"
-  | "profile"
-  | "credits";
 
 const formatDate = (value?: string) => {
   if (!value) {
@@ -50,55 +31,312 @@ const formatDate = (value?: string) => {
   }).format(date);
 };
 
-const createPaymentReference = (credits: number) => {
-  const suffix =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : String(Date.now());
+function DashboardLogo() {
+  return (
+    <Link href="/" className="flex items-center gap-3 text-[#901214]">
+      <span className="relative flex h-8 w-8 items-center justify-center">
+        <span className="absolute left-1 top-1 h-5 w-5 rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
+        <span className="absolute right-1 top-1 h-5 w-5 -rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
+      </span>
+      <span className="font-display text-3xl font-bold leading-none tracking-tight">
+        Luster
+      </span>
+    </Link>
+  );
+}
 
-  return `dashboard-${credits}-${suffix}`;
+function DashboardAction({
+  children,
+  href,
+  active = false,
+  onClick,
+  variant = "secondary",
+}: {
+  children: ReactNode;
+  href?: string;
+  active?: boolean;
+  onClick?: () => void;
+  variant?: "primary" | "secondary";
+}) {
+  const className =
+    variant === "primary"
+      ? "inline-flex min-h-11 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(144,18,20,0.14)] transition hover:bg-[#961116]"
+      : `inline-flex min-h-11 items-center justify-center rounded-md border px-5 text-sm font-bold transition ${
+          active
+            ? "border-[#901214] bg-[#fdf1f0] text-[#901214]"
+            : "border-[#C07771] bg-[#fafafa] text-[#901214] hover:border-[#901214]"
+        }`;
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      aria-pressed={active}
+      className={className}
+      type="button"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function DashboardAlert({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[#EABFB9] bg-[#fdf1f0] px-4 py-3 text-sm font-semibold text-[#901214]">
+      {children}
+    </div>
+  );
+}
+
+function DashboardEmpty({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-[#C07771] bg-[#fffafa] p-6 text-sm leading-6 text-[#2d1718]/65">
+      {children}
+    </div>
+  );
+}
+
+function DashboardLogoutButton() {
+  const router = useRouter();
+  const clearSession = useAuthStore((state) => state.clearSession);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsPending(true);
+      await authService.logout();
+    } catch {
+      clearSession();
+    } finally {
+      setIsPending(false);
+      router.replace("/login");
+    }
+  };
+
+  return (
+    <button
+      className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
+      disabled={isPending}
+      type="button"
+      onClick={handleLogout}
+    >
+      {isPending ? "Signing out..." : "Log Out"}
+    </button>
+  );
+}
+
+function DashboardIllustration() {
+  return (
+    <div className="relative hidden min-h-56 overflow-hidden rounded-r-xl lg:block">
+      <div className="absolute bottom-0 left-12 h-32 w-24 rounded-t-full bg-[#C07771]" />
+      <div className="absolute bottom-0 left-44 h-40 w-28 rounded-t-full bg-[#B2806B]" />
+      <div className="absolute bottom-28 left-16 h-14 w-14 rounded-full bg-[#EABFB9]" />
+      <div className="absolute bottom-36 left-48 h-14 w-14 rounded-full bg-[#EABFB9]" />
+      <div className="absolute bottom-0 left-4 h-24 w-64 rounded-t-full bg-[#EABFB9]/55" />
+      <div className="absolute bottom-8 right-12 h-24 w-28 rounded-t-full border-l-8 border-[#C07771]/45" />
+    </div>
+  );
+}
+
+function DashboardAvatar({ label }: { label: string }) {
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] text-sm font-bold text-[#901214]">
+      {label
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "LU"}
+    </div>
+  );
+}
+
+const getScoreTone = (score: number) => {
+  if (score >= 80) {
+    return "text-[#1f7a3f]";
+  }
+
+  if (score >= 60) {
+    return "text-[#c85f1a]";
+  }
+
+  return "text-[#A22E34]";
 };
 
-function ActionTile({
-  eyebrow,
+const getMatchLabel = (score: number) => {
+  if (score >= 85) {
+    return "Highly Compatible";
+  }
+
+  if (score >= 70) {
+    return "High Compatibility";
+  }
+
+  if (score >= 55) {
+    return "Moderate Match";
+  }
+
+  return "Low Match";
+};
+
+function RecentAnalysisRow({ result }: { result: StoredCompatibilityResult }) {
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-[#EABFB9] py-4 last:border-b-0">
+      <DashboardAvatar label={result.personName} />
+      <div>
+        <p className="text-sm font-bold text-[#2d1718]">You & {result.personName}</p>
+        <p className="mt-1 text-xs text-[#2d1718]/65">
+          Analysed on {formatDate(result.createdAt).split(",")[0]}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className={`font-display text-3xl font-bold ${getScoreTone(result.score)}`}>
+          {Math.round(result.score)}%
+        </p>
+        <p className="text-xs font-semibold text-[#2d1718]/65">{getMatchLabel(result.score)}</p>
+      </div>
+      <DashboardAction href="/results">View Report</DashboardAction>
+    </div>
+  );
+}
+
+function ProfileSnapshot() {
+  const profileRows = [
+    ["♡", "Long-term Orientation", "High", 84],
+    ["♨", "Emotional Needs", "Medium-High", 66],
+    ["▦", "Conflict Style", "Direct", 78],
+    ["≈", "Communication Style", "Expressive", 74],
+    ["♧", "Lifestyle Flexibility", "Medium", 62],
+  ];
+
+  return (
+    <DashboardPanel title="Your Profile Snapshot" action="View full profile" actionHref="/profile">
+      <div className="space-y-5">
+        {profileRows.map(([icon, label, value, width]) => (
+          <div key={label} className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-[#A22E34]">
+              {icon}
+            </span>
+            <div>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm font-semibold text-[#2d1718]">{label}</p>
+                <p className="text-sm text-[#2d1718]">{value}</p>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#EABFB9]">
+                <div
+                  className="h-full rounded-full bg-[#A22E34]"
+                  style={{ width: `${width}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 rounded-xl border border-[#EABFB9] bg-[#fdf1f0] p-5">
+        <p className="text-sm font-bold text-[#901214]">Your Insight</p>
+        <p className="mt-2 text-sm leading-6 text-[#2d1718]/78">
+          You value deep emotional connection and honesty. You match best with
+          partners who are emotionally expressive and share similar long-term goals.
+        </p>
+        <Link href="/profile" className="mt-4 inline-flex text-sm font-bold text-[#901214]">
+          View Full Profile →
+        </Link>
+      </div>
+    </DashboardPanel>
+  );
+}
+
+function DashboardPanel({
   title,
-  description,
   action,
+  actionHref = "/results",
+  children,
 }: {
-  eyebrow: string;
   title: string;
-  description: string;
-  action: ReactNode;
+  action?: string;
+  actionHref?: string;
+  children: ReactNode;
 }) {
   return (
-    <div className={`${designSystem.inset} flex h-full flex-col justify-between p-5`}>
-      <div>
-        <p className={designSystem.eyebrow}>{eyebrow}</p>
-        <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight text-primary">
-          {title}
-        </h3>
-        <BodyText className="mt-3 leading-6">{description}</BodyText>
+    <section className="rounded-xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_10px_24px_rgba(144,18,20,0.05)]">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="font-display text-2xl font-bold text-[#2d1718]">{title}</h2>
+        {action ? (
+          <Link href={actionHref} className="text-sm font-bold text-[#901214]">
+            {action}
+          </Link>
+        ) : null}
       </div>
-      <div className="mt-5">{action}</div>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function TopCompatibleRow({
+  result,
+  index,
+}: {
+  result: StoredCompatibilityResult;
+  index: number;
+}) {
+  const insights = [
+    ["Strong emotional alignment", "Similar long-term goals", "Slight lifestyle differences"],
+    ["High long-term potential", "Good communication fit", "Moderate conflict style gap"],
+    ["Emotional connection", "Different lifestyle pace", "Values align well"],
+  ][index % 3];
+
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto_1.1fr_auto] items-center gap-5 border-b border-[#EABFB9] py-4 last:border-b-0">
+      <DashboardAvatar label={result.personName} />
+      <div>
+        <p className="text-sm font-bold text-[#2d1718]">{result.personName}</p>
+        <p className="mt-1 text-xs text-[#2d1718]/65">Compatibility profile</p>
+      </div>
+      <div className="text-center">
+        <p className={`font-display text-3xl font-bold ${getScoreTone(result.score)}`}>
+          {Math.round(result.score)}%
+        </p>
+        <p className="text-xs font-semibold text-[#c85f1a]">{getMatchLabel(result.score)}</p>
+      </div>
+      <div className="space-y-1 text-xs text-[#2d1718]/72">
+        {insights.map((insight, insightIndex) => (
+          <p key={insight} className="flex items-center gap-2">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                insightIndex === 2 ? "bg-[#d6a11d]" : "bg-[#1f7a3f]"
+              }`}
+            />
+            {insight}
+          </p>
+        ))}
+      </div>
+      <Link
+        href="/results"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-xl font-bold text-[#901214]"
+      >
+        ›
+      </Link>
     </div>
   );
 }
 
 export function DashboardOverview() {
-  const activePanelRef = useRef<HTMLDivElement | null>(null);
+  const user = useAuthStore((state) => state.user);
   const { credits, parameters } = usePlanAccess();
-  const setCredits = usePlanStore((state) => state.setCredits);
   const [history, setHistory] = useState<StoredCompatibilityResult[]>([]);
   const [topMatches, setTopMatches] = useState<StoredCompatibilityResult[]>([]);
   const [privatePersons, setPrivatePersons] = useState<PrivatePerson[]>([]);
-  const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanMeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
-  const [isPurchasingCredits, setIsPurchasingCredits] = useState<number | null>(null);
-  const [activeDashboardPanel, setActiveDashboardPanel] = useState<DashboardPanel | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -111,13 +349,11 @@ export function DashboardOverview() {
           topMatchesResponse,
           privatePersonsResponse,
           planResponse,
-          paymentHistoryResponse,
         ] = await Promise.allSettled([
           compatibilityService.history(),
           compatibilityService.topMatches(),
           privatePersonsService.list(),
           planService.getCurrent(),
-          planService.getPaymentHistory(),
         ]);
 
         if (historyResponse.status === "fulfilled") {
@@ -136,16 +372,11 @@ export function DashboardOverview() {
           setPlanSummary(planResponse.value);
         }
 
-        if (paymentHistoryResponse.status === "fulfilled") {
-          setPayments(paymentHistoryResponse.value.payments ?? []);
-        }
-
         if (
           historyResponse.status === "rejected" &&
           topMatchesResponse.status === "rejected" &&
           privatePersonsResponse.status === "rejected" &&
-          planResponse.status === "rejected" &&
-          paymentHistoryResponse.status === "rejected"
+          planResponse.status === "rejected"
         ) {
           setError("Unable to load dashboard insights right now.");
         }
@@ -157,12 +388,8 @@ export function DashboardOverview() {
     })();
   }, []);
 
-  const latestPrivatePerson = privatePersons[0] ?? null;
   const strongestMatch = topMatches[0] ?? null;
-  const latestPayment = payments[0] ?? null;
   const availableCredits = planSummary?.credits ?? credits;
-  const freeCredits = planSummary?.free_credits ?? 0;
-  const paidCredits = planSummary?.paid_credits ?? Math.max(availableCredits - freeCredits, 0);
 
   const unlockedParameters = useMemo(
     () => Object.values(parameters).filter((item) => item.free).length,
@@ -173,489 +400,206 @@ export function DashboardOverview() {
     [parameters],
   );
 
-  const handlePurchaseCredits = async (creditAmount: number) => {
-    try {
-      setIsPurchasingCredits(creditAmount);
-      setPurchaseError(null);
-      setPurchaseMessage(null);
-
-      await planService.purchase({
-        credits: creditAmount,
-        payment_reference: createPaymentReference(creditAmount),
-      });
-
-      const [refreshedPlan, refreshedPayments] = await Promise.all([
-        planService.getCurrent(),
-        planService.getPaymentHistory(),
-      ]);
-
-      setPlanSummary(refreshedPlan);
-      setPayments(refreshedPayments.payments ?? []);
-      setCredits(refreshedPlan.credits ?? 0);
-      setPurchaseMessage(`${creditAmount} credits added to your account.`);
-    } catch {
-      setPurchaseError("Unable to purchase credits right now.");
-    } finally {
-      setIsPurchasingCredits(null);
-    }
-  };
-
-  const openDashboardPanel = (panel: DashboardPanel) => {
-    setActiveDashboardPanel(panel);
-    window.setTimeout(() => {
-      activePanelRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 0);
-  };
-
-  useEffect(() => {
-    const openPanelFromHash = () => {
-      if (window.location.hash === "#credits-access") {
-        openDashboardPanel("credits");
-      }
-    };
-
-    openPanelFromHash();
-    window.addEventListener("hashchange", openPanelFromHash);
-
-    return () => {
-      window.removeEventListener("hashchange", openPanelFromHash);
-    };
-  }, []);
+  const displayName = user?.username || user?.first_name || user?.email || "Samar";
+  const recentAnalyses = history.slice(0, 3);
+  const topCompatiblePeople = (topMatches.length > 0 ? topMatches : history).slice(0, 3);
+  const matchesFound = topMatches.length || history.filter((result) => result.score >= 70).length;
 
   return (
-    <AppScaffold
-      title="Dashboard"
-      description="Keep private profiles, credits, recent compatibility activity, and strongest matches together in one dashboard built for repeated matchmaking workflows."
-      actions={
-        <>
-          <ActionLink href="/connections">Connections</ActionLink>
-          <ActionLink href="/private-persons">Private User</ActionLink>
-          <ActionLink href="/compatibility" variant="primary">
-            Run compatibility
-          </ActionLink>
-        </>
-      }
-    >
-      {error ? <AlertMessage>{error}</AlertMessage> : null}
-
-      <div className="grid gap-8">
-        <SectionCard
-          eyebrow="Command Center"
-          title="Matchmaking at a glance"
-          description="The core actions for private-user management, matching, and repeat review are grouped here so you can move between setup and analysis without hunting through the app."
-        >
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricTile label="Private Users" value={privatePersons.length} />
-            <MetricTile
-              label="Top Match"
-              value={
-                strongestMatch ? (
-                  <span className="block text-3xl leading-tight">{strongestMatch.personName}</span>
-                ) : (
-                  "--"
-                )
-              }
-            />
-            <MetricTile label="Credits Available" value={availableCredits} />
-            <MetricTile label="Saved Checks" value={history.length} />
+    <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
+      <nav className="border-b border-[#EABFB9] bg-[#fafafa] px-8 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-8">
+          <DashboardLogo />
+          <div className="hidden items-center gap-10 text-sm font-semibold text-[#2d1718] lg:flex">
+            <Link href="/dashboard" className="border-b-2 border-[#901214] pb-3 text-[#901214]">
+              Dashboard
+            </Link>
+            <Link href="/top-scores">Matches</Link>
+            <Link href="/results">Reports</Link>
+            <Link href="/connections">Connections</Link>
+            <Link href="/profile">Profile</Link>
           </div>
-
-          <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            <ActionTile
-              eyebrow="Private Users"
-              title="Build your shortlist"
-              description="Add new private profiles, review your full library, or jump straight to the strongest current match."
-              action={
-                <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/private-persons" variant="primary">
-                    Private User
-                  </ActionLink>
-                  <Button
-                    aria-pressed={activeDashboardPanel === "top-matches"}
-                    className={
-                      activeDashboardPanel === "top-matches"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    variant="secondary"
-                    onClick={() => openDashboardPanel("top-matches")}
-                  >
-                    Top match
-                  </Button>
-                </div>
-              }
-            />
-
-            <ActionTile
-              eyebrow="Matching"
-              title="Run the next check"
-              description="Go directly into compatibility calculation or review the result archive before running another comparison."
-              action={
-                <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/compatibility" variant="primary">
-                    Run compatibility
-                  </ActionLink>
-                  <Button
-                    aria-pressed={activeDashboardPanel === "history"}
-                    className={
-                      activeDashboardPanel === "history"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    variant="secondary"
-                    onClick={() => openDashboardPanel("history")}
-                  >
-                    Open results
-                  </Button>
-                </div>
-              }
-            />
-
-            <ActionTile
-              eyebrow="Account"
-              title="Keep the data ready"
-              description="Maintain your own birth details and keep premium parameters available for deeper readings."
-              action={
-                <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/profile" variant="primary" className="rounded-full px-5 py-3">
-                    Update profile
-                  </ActionLink>
-                  <Button
-                    aria-pressed={activeDashboardPanel === "credits"}
-                    className={
-                      activeDashboardPanel === "credits"
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-[#fafafa]"
-                        : ""
-                    }
-                    variant="secondary"
-                    onClick={() => openDashboardPanel("credits")}
-                  >
-                    Credits & access
-                  </Button>
-                </div>
-              }
-            />
-          </div>
-        </SectionCard>
-      </div>
-
-      {activeDashboardPanel ? (
-        <div ref={activePanelRef} className="scroll-mt-6">
-          {activeDashboardPanel === "private-users" ? (
-            <SectionCard
-              eyebrow="Private Users"
-              title="Private user workspace"
-              description="The dashboard section for managing your private matchmaking pool and deciding what to do next with it."
-              actions={<ActionLink href="/private-persons">Private User</ActionLink>}
-            >
-          <div className="grid gap-4 md:grid-cols-3">
-            <MetricTile label="Profiles Saved" value={privatePersons.length} />
-            <MetricTile
-              label="Latest Addition"
-              value={latestPrivatePerson?.name ?? "--"}
-              className="min-h-[148px]"
-            />
-            <MetricTile
-              label="Top Match"
-              value={
-                strongestMatch ? (
-                  <span className="block text-3xl leading-tight">{strongestMatch.personName}</span>
-                ) : (
-                  "--"
-                )
-              }
-              className="min-h-[148px]"
-            />
-          </div>
-
-          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.eyebrow}>Recommended Actions</p>
-              <h3 className="mt-3 font-display text-3xl font-semibold tracking-tight text-primary">
-                Keep your shortlist active
-              </h3>
-              <BodyText className="mt-3 leading-6">
-                Matchmaking work tends to start with good private data. Add new people,
-                review existing records, and use top-match feedback to decide who should be
-                checked next.
-              </BodyText>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <ActionLink href="/private-persons" variant="primary">
-                  Private User
-                </ActionLink>
-                <Button
-                  variant="secondary"
-                  onClick={() => openDashboardPanel("top-matches")}
-                >
-                  Top match
-                </Button>
-              </div>
+          <div className="flex items-center gap-5">
+            <div className="relative hidden sm:block">
+              <span className="text-2xl">♧</span>
+              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#901214] text-[10px] font-bold text-white">
+                3
+              </span>
             </div>
+            <DashboardAvatar label={displayName} />
+            <span className="hidden text-sm font-bold text-[#2d1718] sm:inline">{displayName}</span>
+            <DashboardLogoutButton />
+          </div>
+        </div>
+      </nav>
 
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Library Snapshot</p>
-              {privatePersons.length === 0 ? (
-                <EmptyState className="mt-4 p-5">
-                  No private users have been added yet. This section becomes more useful once
-                  you save your first profile.
-                </EmptyState>
+      <div className="mx-auto max-w-7xl px-8 py-8">
+        {error ? <DashboardAlert>{error}</DashboardAlert> : null}
+
+        <section className="grid overflow-hidden rounded-xl border border-[#EABFB9] bg-[#fdf1f0] lg:grid-cols-[1fr_0.95fr]">
+          <div className="p-10">
+            <h1 className="font-display text-5xl font-bold leading-tight text-[#2d1718]">
+              Welcome back, {displayName} 👋
+            </h1>
+            <p className="mt-4 max-w-md text-lg leading-8 text-[#2d1718]/76">
+              You’re one step closer to building stronger, more meaningful relationships.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-5">
+              <DashboardAction href="/compatibility" variant="primary">
+                Check Compatibility →
+              </DashboardAction>
+              <DashboardAction href="/top-scores">Find Matches →</DashboardAction>
+            </div>
+          </div>
+          <DashboardIllustration />
+        </section>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.9fr)]">
+          <div className="grid gap-6">
+            <DashboardPanel title="Your Recent Analyses" action="View all">
+              {isLoading ? (
+                <DashboardEmpty>Loading recent analyses...</DashboardEmpty>
+              ) : recentAnalyses.length > 0 ? (
+                recentAnalyses.map((result) => (
+                  <RecentAnalysisRow key={result.id} result={result} />
+                ))
               ) : (
-                <div className="mt-4 space-y-3">
-                  {privatePersons.slice(0, 3).map((person) => (
-                    <div key={person.id} className={designSystem.tile}>
-                      <p className="text-sm font-semibold text-primary">{person.name}</p>
-                      <BodyText className="mt-1 leading-6">
-                        {person.place_of_birth || "Place pending"} · DOB {person.date_of_birth}
-                      </BodyText>
-                    </div>
-                  ))}
-                </div>
+                <DashboardEmpty>No analyses yet. Run a compatibility check to begin.</DashboardEmpty>
               )}
-            </div>
-          </div>
-            </SectionCard>
-          ) : null}
+            </DashboardPanel>
 
-          {activeDashboardPanel === "credits" ? (
-            <SectionCard
-              eyebrow="Credits"
-              title="Credits & access"
-              description="Track balance, understand free versus paid access, and add more credits without leaving the dashboard."
-              actions={
-                <ActionLink href="/compatibility" variant="primary">
-                  Use credits now
-                </ActionLink>
-              }
-            >
-          <div id="credits-access" className="grid gap-4 md:grid-cols-3">
-            <MetricTile label="Available" value={availableCredits} />
-            <MetricTile label="Free Credits" value={freeCredits} />
-            <MetricTile label="Paid Credits" value={paidCredits} />
-          </div>
-
-          <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.eyebrow}>Purchase Credit</p>
-              <h3 className="mt-3 font-display text-3xl font-semibold tracking-tight text-primary">
-                Add credits in one step
-              </h3>
-              <BodyText className="mt-3 leading-6">
-                Use the quick purchase options below to keep compatibility analysis moving.
-                Premium parameter access becomes more practical when you have enough credits
-                to compare multiple candidates back to back.
-              </BodyText>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {purchaseOptions.map((creditAmount) => (
-                  <button
-                    key={creditAmount}
-                    className={`${designSystem.tile} flex items-center justify-between text-left transition hover:-translate-y-0.5 hover:border-accent`}
-                    disabled={isPurchasingCredits !== null}
-                    type="button"
-                    onClick={() => handlePurchaseCredits(creditAmount)}
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold text-primary">
-                        {creditAmount} credits
-                      </span>
-                      <span className="mt-1 block text-xs uppercase tracking-[0.18em] text-foreground/48">
-                        Purchase
-                      </span>
+            <DashboardPanel title="Recommended For You">
+              <div className="space-y-4">
+                {[
+                  `You have ${matchesFound} high compatibility match${matchesFound === 1 ? "" : "es"}.`,
+                  strongestMatch
+                    ? `One strong long-term alignment detected with ${strongestMatch.personName}.`
+                    : "Add more private users to improve your match recommendations.",
+                  history.some((result) => result.score < 55)
+                    ? "Consider reviewing your recent low match."
+                    : "Review your recent report archive for useful patterns.",
+                  "Improve communication to strengthen relationship outcomes.",
+                ].map((item, index) => (
+                  <p key={item} className="flex items-center gap-4 text-sm text-[#2d1718]">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-[#A22E34]">
+                      {["☆", "♡", "↗", "☵"][index]}
                     </span>
-                    <span className="rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
-                      {isPurchasingCredits === creditAmount ? "Working" : "Buy"}
-                    </span>
-                  </button>
+                    {item}
+                  </p>
                 ))}
               </div>
-
-              {purchaseMessage ? (
-                <AlertMessage className="mt-4 border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
-                  {purchaseMessage}
-                </AlertMessage>
-              ) : null}
-              {purchaseError ? <AlertMessage className="mt-4">{purchaseError}</AlertMessage> : null}
-            </div>
-
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Access Snapshot</p>
-              <div className="mt-4 space-y-3">
-                <div className={designSystem.tile}>
-                  <p className="text-sm font-semibold text-primary">Free parameters</p>
-                  <BodyText className="mt-2 leading-6">
-                    {unlockedParameters} available without extra spend.
-                  </BodyText>
-                </div>
-                <div className={designSystem.tile}>
-                  <p className="text-sm font-semibold text-primary">Premium parameters</p>
-                  <BodyText className="mt-2 leading-6">
-                    {premiumParameters} deeper signals available through paid access.
-                  </BodyText>
-                </div>
-                <div className={designSystem.tile}>
-                  <p className="text-sm font-semibold text-primary">Last payment activity</p>
-                  <BodyText className="mt-2 leading-6">
-                    {latestPayment
-                      ? `${latestPayment.credits_purchased ?? 0} credits · ${formatDate(latestPayment.created_at)}`
-                      : "No payment activity has been recorded yet."}
-                  </BodyText>
-                </div>
+              <div className="mt-6">
+                <DashboardAction href="/top-scores" variant="primary">
+                  View Matches →
+                </DashboardAction>
               </div>
-            </div>
+            </DashboardPanel>
+
+            <DashboardPanel title="Top Compatible People For You" action="View all">
+              {isLoading ? (
+                <DashboardEmpty>Loading compatible people...</DashboardEmpty>
+              ) : topCompatiblePeople.length > 0 ? (
+                topCompatiblePeople.map((result, index) => (
+                  <TopCompatibleRow key={result.id} result={result} index={index} />
+                ))
+              ) : (
+                <DashboardEmpty>No compatible people are available yet.</DashboardEmpty>
+              )}
+            </DashboardPanel>
           </div>
-            </SectionCard>
-          ) : null}
 
-          {activeDashboardPanel === "profile" ? (
-            <SectionCard
-              eyebrow="Profile"
-              title="Profile readiness"
-              description="Keep your own birth data current before comparing new candidates."
-            >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.eyebrow}>Profile Readiness</p>
-              <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight text-primary">
-                Keep your birth data current
-              </h3>
-              <BodyText className="mt-3 leading-6">
-                Your own saved profile is the anchor for every compatibility run. Update it
-                before comparing new candidates.
-              </BodyText>
-              <div className="mt-5">
-                <ActionLink href="/profile" variant="primary">
-                  Update profile
-                </ActionLink>
+          <div className="grid content-start gap-6">
+            <ProfileSnapshot />
+
+            <DashboardPanel title="Quick Stats">
+              <div className="divide-y divide-[#EABFB9]">
+                {[
+                  ["▣", "Analyses Done", history.length],
+                  ["♡", "Matches Found", matchesFound],
+                  ["♙", "Connections", privatePersons.length],
+                  ["▤", "Reports Unlocked", unlockedParameters + premiumParameters],
+                ].map(([icon, label, value]) => (
+                  <div key={label} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-4">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-[#A22E34]">
+                        {icon}
+                      </span>
+                      <p className="text-sm font-semibold text-[#2d1718]">{label}</p>
+                    </div>
+                    <p className="text-sm font-bold text-[#2d1718]">{value}</p>
+                  </div>
+                ))}
               </div>
-            </div>
+            </DashboardPanel>
 
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Recent activity</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                {history.length} stored compatibility check{history.length === 1 ? "" : "s"}
-              </p>
-              <BodyText className="mt-2 leading-6">
-                A healthy archive makes it easier to spot patterns across multiple potential
-                matches.
-              </BodyText>
-            </div>
+            <DashboardPanel title="What’s New">
+              <div className="space-y-5">
+                <Link href="/results" className="flex items-center justify-between gap-4">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#fdf1f0] text-2xl text-[#A22E34]">
+                    ▣
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-bold text-[#2d1718]">New Insight Feature</span>
+                    <span className="text-xs text-[#2d1718]/65">Get deeper insights into your compatibility.</span>
+                  </span>
+                  <span className="text-2xl text-[#2d1718]">›</span>
+                </Link>
+                <Link href="/top-scores" className="flex items-center justify-between gap-4">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#fdf1f0] text-2xl text-[#A22E34]">
+                    ✣
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-bold text-[#2d1718]">Improved Matching</span>
+                    <span className="text-xs text-[#2d1718]/65">Better matches based on your feedback.</span>
+                  </span>
+                  <span className="text-2xl text-[#2d1718]">›</span>
+                </Link>
+              </div>
+              <Link href="/results" className="mt-5 inline-flex text-sm font-bold text-[#901214]">
+                See All Updates →
+              </Link>
+            </DashboardPanel>
           </div>
-            </SectionCard>
-          ) : null}
-
-          {activeDashboardPanel === "compatibility" ? (
-            <SectionCard
-              eyebrow="Matching"
-              title="Run compatibility"
-              description="Start a fresh compatibility run whenever a private user is ready for review."
-            >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Need a new comparison?</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                Go from shortlist to score quickly
-              </p>
-              <BodyText className="mt-2 leading-6">
-                Start a fresh compatibility run whenever a new private user is ready for
-                review.
-              </BodyText>
-              <div className="mt-5">
-                <ActionLink href="/compatibility" variant="primary">
-                  Run compatibility
-                </ActionLink>
-              </div>
-            </div>
-
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Available balance</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                {availableCredits} credit{availableCredits === 1 ? "" : "s"} ready
-              </p>
-              <BodyText className="mt-2 leading-6">
-                Use credits for deeper compatibility analysis when premium parameters are
-                needed.
-              </BodyText>
-            </div>
-          </div>
-            </SectionCard>
-          ) : null}
-
-          {activeDashboardPanel === "history" ? (
-            <SectionCard
-              eyebrow="Results"
-              title="Result archive"
-              description="Open the result archive when you need to compare multiple past checks instead of relying on a single top score."
-            >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.eyebrow}>Results Review</p>
-              <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight text-primary">
-                Compare before you decide
-              </h3>
-              <BodyText className="mt-3 leading-6">
-                Review past compatibility checks when you need to compare several candidates
-                side by side.
-              </BodyText>
-              <div className="mt-5">
-                <ActionLink href="/results" variant="primary">
-                  Review result archive
-                </ActionLink>
-              </div>
-            </div>
-
-            <div className={`${designSystem.inset} p-5`}>
-              <p className={designSystem.label}>Recent activity</p>
-              <p className="mt-3 text-lg font-semibold text-primary">
-                {history.length} stored compatibility check{history.length === 1 ? "" : "s"}
-              </p>
-              <BodyText className="mt-2 leading-6">
-                A healthy archive makes it easier to spot patterns across multiple potential
-                matches.
-              </BodyText>
-            </div>
-          </div>
-            </SectionCard>
-          ) : null}
-
-          {isLoading && (activeDashboardPanel === "top-matches" || activeDashboardPanel === "history") ? (
-            <SectionCard
-              title="Loading insights"
-              description="Fetching compatibility history, top matches, private users, and credits."
-            >
-              <EmptyState className="border-black/10">Loading dashboard data...</EmptyState>
-            </SectionCard>
-          ) : !isLoading && activeDashboardPanel === "top-matches" ? (
-            <div className="space-y-8">
-              <div id="top-matches">
-                <ResultsBoard
-                  credits={availableCredits}
-                  description="Top matches returned by the backend, sorted and grouped for quick review."
-                  emptyMessage="No top matches are available yet."
-                  parameters={parameters}
-                  results={topMatches}
-                  title="Top matches"
-                />
-              </div>
-            </div>
-          ) : !isLoading && activeDashboardPanel === "history" ? (
-            <div className="space-y-8">
-              <ResultsBoard
-                credits={availableCredits}
-                description="Recent compatibility history returned by the backend."
-                emptyMessage="No compatibility history is available yet."
-                parameters={parameters}
-                results={history}
-                title="History"
-              />
-            </div>
-          ) : null}
         </div>
-      ) : null}
 
-    </AppScaffold>
+        <section className="mt-8 flex flex-col items-center justify-between gap-6 overflow-hidden rounded-xl bg-[#A22E34] px-8 py-6 text-white md:flex-row">
+          <div className="hidden text-7xl text-[#EABFB9]/70 md:block">♡</div>
+          <div>
+            <h2 className="font-display text-3xl font-bold">Don’t guess something this important.</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-white/90">
+              Check compatibility before you invest your time, energy, and emotions.
+            </p>
+          </div>
+          <div className="text-center">
+            <Link
+              href="/compatibility"
+              className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#fafafa] px-12 text-sm font-bold text-[#901214]"
+            >
+              Check Compatibility Now →
+            </Link>
+            <p className="mt-3 text-sm text-white/90">🔒 It’s free to get started</p>
+          </div>
+        </section>
+      </div>
+
+      <footer className="border-t border-[#EABFB9] bg-[#fffafa] px-8 py-5">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
+          <DashboardLogo />
+          <div className="flex flex-wrap justify-center gap-8 text-sm text-[#2d1718]/70">
+            {["About Us", "How It Works", "Privacy Policy", "Terms of Service", "Contact Us"].map((link) => (
+              <Link key={link} href="/">
+                {link}
+              </Link>
+            ))}
+          </div>
+          <div className="flex gap-4 text-[#901214]">
+            <span>●</span>
+            <span>◎</span>
+            <span>◒</span>
+            <span>in</span>
+          </div>
+        </div>
+      </footer>
+    </main>
   );
 }
