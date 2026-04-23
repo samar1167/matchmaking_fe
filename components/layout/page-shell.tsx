@@ -1,4 +1,3 @@
-import { LogoutButton } from "@/components/auth/logout-button";
 import { HeroSection } from "@/components/ui/design-system";
 
 type PageShellProps = {
@@ -20,9 +19,6 @@ export function PageShell({ title, description }: PageShellProps) {
               {title}
             </h1>
             <p className="mt-4 max-w-xl text-base leading-7 text-white/74">{description}</p>
-          </div>
-          <div className="shrink-0">
-            <LogoutButton />
           </div>
         </div>
       </HeroSection>

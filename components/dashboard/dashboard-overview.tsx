@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { authService } from "@/services/authService";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
@@ -100,35 +98,6 @@ function DashboardEmpty({ children }: { children: ReactNode }) {
     <div className="rounded-xl border border-dashed border-[#C07771] bg-[#fffafa] p-6 text-sm leading-6 text-[#2d1718]/65">
       {children}
     </div>
-  );
-}
-
-function DashboardLogoutButton() {
-  const router = useRouter();
-  const clearSession = useAuthStore((state) => state.clearSession);
-  const [isPending, setIsPending] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      setIsPending(true);
-      await authService.logout();
-    } catch {
-      clearSession();
-    } finally {
-      setIsPending(false);
-      router.replace("/login");
-    }
-  };
-
-  return (
-    <button
-      className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
-      disabled={isPending}
-      type="button"
-      onClick={handleLogout}
-    >
-      {isPending ? "Signing out..." : "Log Out"}
-    </button>
   );
 }
 
@@ -407,32 +376,6 @@ export function DashboardOverview() {
 
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
-      <nav className="border-b border-[#EABFB9] bg-[#fafafa] px-8 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-8">
-          <DashboardLogo />
-          <div className="hidden items-center gap-10 text-sm font-semibold text-[#2d1718] lg:flex">
-            <Link href="/dashboard" className="border-b-2 border-[#901214] pb-3 text-[#901214]">
-              Dashboard
-            </Link>
-            <Link href="/top-scores">Matches</Link>
-            <Link href="/results">Reports</Link>
-            <Link href="/connections">Connections</Link>
-            <Link href="/profile">Profile</Link>
-          </div>
-          <div className="flex items-center gap-5">
-            <div className="relative hidden sm:block">
-              <span className="text-2xl">♧</span>
-              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#901214] text-[10px] font-bold text-white">
-                3
-              </span>
-            </div>
-            <DashboardAvatar label={displayName} />
-            <span className="hidden text-sm font-bold text-[#2d1718] sm:inline">{displayName}</span>
-            <DashboardLogoutButton />
-          </div>
-        </div>
-      </nav>
-
       <div className="mx-auto max-w-7xl px-8 py-8">
         {error ? <DashboardAlert>{error}</DashboardAlert> : null}
 

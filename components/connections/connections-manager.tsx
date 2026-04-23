@@ -1,8 +1,6 @@
 "use client";
 
 import { isAxiosError } from "axios";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ChatDialog } from "@/components/chat/chat-dialog";
@@ -15,7 +13,6 @@ import {
 import { useChatConversationUnreadCounts } from "@/hooks/useChatNotifications";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
 import { cn } from "@/lib/cn";
-import { authService } from "@/services/authService";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { connectionService } from "@/services/connectionService";
@@ -283,43 +280,6 @@ const paginate = <Item,>(items: Item[], page: number) => {
   return items.slice(start, start + pageSize);
 };
 
-function ConnectionsLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-3 text-[#901214]">
-      <span className="relative flex h-8 w-8 items-center justify-center">
-        <span className="absolute left-1 top-1 h-5 w-5 rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-        <span className="absolute right-1 top-1 h-5 w-5 -rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-      </span>
-      <span className="font-display text-3xl font-bold leading-none tracking-tight">
-        Luster
-      </span>
-    </Link>
-  );
-}
-
-function ConnectionsLink({
-  children,
-  href,
-  variant = "secondary",
-}: {
-  children: React.ReactNode;
-  href: string;
-  variant?: "primary" | "secondary";
-}) {
-  return (
-    <Link
-      href={href}
-      className={
-        variant === "primary"
-          ? "inline-flex min-h-11 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(144,18,20,0.14)] transition hover:bg-[#961116]"
-          : "inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
-      }
-    >
-      {children}
-    </Link>
-  );
-}
-
 function ConnectionsButton({
   children,
   className,
@@ -398,34 +358,6 @@ function ConnectionsAlert({ children }: { children: React.ReactNode }) {
     <div className="rounded-lg border border-[#EABFB9] bg-[#fdf1f0] px-4 py-3 text-sm font-semibold text-[#901214]">
       {children}
     </div>
-  );
-}
-
-function ConnectionsLogoutButton() {
-  const router = useRouter();
-  const clearSession = useAuthStore((state) => state.clearSession);
-  const [isPending, setIsPending] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      setIsPending(true);
-      await authService.logout();
-    } catch {
-      clearSession();
-    } finally {
-      setIsPending(false);
-      router.replace("/login");
-    }
-  };
-
-  return (
-    <ConnectionsButton
-      disabled={isPending}
-      variant="secondary"
-      onClick={handleLogout}
-    >
-      {isPending ? "Signing out..." : "Log Out"}
-    </ConnectionsButton>
   );
 }
 
@@ -1146,24 +1078,6 @@ export function ConnectionsManager() {
 
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
-      <nav className="border-b border-[#EABFB9] bg-[#fafafa] px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <ConnectionsLogo />
-          <div className="hidden items-center gap-8 text-sm font-semibold text-[#2d1718]/72 lg:flex">
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/results">Results</Link>
-            <Link href="/compatibility">Compatibility Check</Link>
-            <Link href="/private-persons">Private Users</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <ConnectionsLink href="/results" variant="primary">
-              Results
-            </ConnectionsLink>
-            <ConnectionsLogoutButton />
-          </div>
-        </div>
-      </nav>
-
       <section className="bg-[linear-gradient(180deg,#fffafa_0%,#fdf1f0_100%)] px-6 py-10">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
@@ -1222,7 +1136,7 @@ export function ConnectionsManager() {
       <div className="grid gap-8">
         <ConnectionsSection
           eyebrow="Connections"
-          title="Accepted connections"
+          title=""
           description="People you are currently connected with, including chat access and compatibility status."
         >
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -1271,8 +1185,8 @@ export function ConnectionsManager() {
 
         <ConnectionsSection
           eyebrow="Suggested Match for you"
-          title="Suggested matches"
-          description="Potential public matches ranked by compatibility signals and connection status."
+          title=""
+          description="Suggestions are based on your Match Connection preferences."
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {isLoading ? (
@@ -1362,12 +1276,12 @@ export function ConnectionsManager() {
 
         <ConnectionsSection
           eyebrow="Connection Requests"
-          title="Pending requests"
+          title=""
           description="Review incoming requests and manage invitations you have already sent."
         >
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
-              <h3 className="font-display text-3xl font-bold tracking-tight text-[#2d1718]">
+              <h3 className="font-display text-1xl font-bold tracking-tight text-[#2d1718]">
                 Received
               </h3>
               <div className="mt-4 grid gap-4">
@@ -1418,7 +1332,7 @@ export function ConnectionsManager() {
             </div>
 
             <div>
-              <h3 className="font-display text-3xl font-bold tracking-tight text-[#2d1718]">
+              <h3 className="font-display text-1xl font-bold tracking-tight text-[#2d1718]">
                 Sent
               </h3>
               <div className="mt-4 grid gap-4">

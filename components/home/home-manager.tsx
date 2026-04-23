@@ -2,13 +2,11 @@
 
 import { isAxiosError } from "axios";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import { CompatibilityScoreLine } from "@/components/ui/compatibility-score";
-import { useChatTotalUnreadCount } from "@/hooks/useChatNotifications";
 import { compatibilityService } from "@/services/compatibilityService";
 import { connectionService } from "@/services/connectionService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
@@ -26,8 +24,6 @@ import type { PrivatePerson } from "@/types/private-persons";
 import type { PlanParameters } from "@/types/plan";
 import type { UserProfile } from "@/types/profile";
 import type { UserMatch } from "@/types/user-match";
-
-const heroRotatingWords = ["sex", "love", "friendship", "time"];
 
 type ServerMessagePayload =
   | ApiErrorResponse
@@ -244,27 +240,12 @@ const createPaymentReference = (credits: number) => {
   return `homepage-${credits}-${suffix}`;
 };
 
-function HomeShell({
-  children,
-  actions,
-}: {
+function HomeShell({ children }: {
   children: ReactNode;
-  actions?: ReactNode;
 }) {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(162,46,52,0.22),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(178,128,107,0.16),transparent_20%),linear-gradient(180deg,#0c0d0a_0%,#901214_45%,#7f533e_100%)] px-6 py-8 text-white sm:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/5 px-5 py-4 shadow-[0_24px_80px_rgba(12,13,10,0.45)] backdrop-blur-xl">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-[#f5d5c8]">
-              LUSTER
-            </p>
-            <p className="mt-2 text-sm text-[#eabfb9]">
-              For the best <RotatingHeroWord /> of your life.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">{actions}</div>
-        </header>
         {children}
       </div>
     </main>
@@ -318,36 +299,6 @@ function MiniActionLink({
     </Link>
   );
 }
-
-function RotatingHeroWord() {
-  const [wordIndex, setWordIndex] = useState(0);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setWordIndex((currentIndex) => (currentIndex + 1) % heroRotatingWords.length);
-    }, 1500);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  return (
-    <span
-      key={heroRotatingWords[wordIndex]}
-      className="hero-rotating-word inline-block min-w-[6.9em] text-[#f5d5c8]"
-      aria-live="polite"
-    >
-      {heroRotatingWords[wordIndex]}
-    </span>
-  );
-}
-
-const landingNavLinks = [
-  "How It Works",
-  "Find Matches",
-  "Compatibility Check",
-  "About Us",
-  "Blog",
-];
 
 const reportMetrics = [
   { label: "Long-term compatibility", value: 82 },
@@ -651,28 +602,6 @@ function ComparisonRow({
 function PublicLandingPage() {
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
-      <nav className="border-b border-[#EABFB9] bg-[#fafafa] px-8 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-8">
-          <LusterLogo />
-          <div className="hidden items-center gap-10 text-sm font-semibold text-[#2d1718]/75 lg:flex">
-            {landingNavLinks.map((link) => (
-              <a key={link} href={`#${link.toLowerCase().replaceAll(" ", "-")}`}>
-                {link}
-              </a>
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="hidden rounded-md border border-[#C07771] px-7 py-3 text-sm font-bold text-[#901214] sm:inline-flex"
-            >
-              Log In
-            </Link>
-            <LandingButton href="/register">Sign Up</LandingButton>
-          </div>
-        </div>
-      </nav>
-
       <section className="bg-[linear-gradient(180deg,#fffafa_0%,#fdf1f0_100%)] px-8 py-12">
         <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
           <div>
@@ -869,9 +798,9 @@ function PublicLandingPage() {
 
 export function HomeManager() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
-  const totalUnreadCount = useChatTotalUnreadCount();
   const parameters = usePlanStore((state) => state.parameters);
   const setCredits = usePlanStore((state) => state.setCredits);
   const setParameters = usePlanStore((state) => state.setParameters);
@@ -1143,22 +1072,12 @@ export function HomeManager() {
     }
   };
 
-  if (!token) {
+  if (!token || searchParams.get("view") === "public") {
     return <PublicLandingPage />;
   }
 
   return (
-    <HomeShell
-      actions={
-        <>
-          <MiniActionLink href="/dashboard">Dashboard</MiniActionLink>
-          <MiniActionLink href="/connections" badge={totalUnreadCount}>
-            Connections
-          </MiniActionLink>
-          <LogoutButton />
-        </>
-      }
-    >
+    <HomeShell>
       <Surface className="overflow-hidden">
           <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr] xl:items-end">
             <div>

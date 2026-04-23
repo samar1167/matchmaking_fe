@@ -1,8 +1,6 @@
 "use client";
 
 import { isAxiosError } from "axios";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   mapPrivatePersonToFormValues,
@@ -15,11 +13,9 @@ import {
   isNumericCompatibilityValue,
 } from "@/components/ui/compatibility-score";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
-import { authService } from "@/services/authService";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
 import { privatePersonsService } from "@/services/privatePersonsService";
-import { useAuthStore } from "@/store/authStore";
 import { useResultsStore, type StoredCompatibilityResult } from "@/store/resultsStore";
 import type { ApiErrorResponse } from "@/types/common";
 import type { PlanParameters } from "@/types/plan";
@@ -27,88 +23,6 @@ import type {
   CreatePrivatePersonRequest,
   PrivatePerson,
 } from "@/types/private-persons";
-
-function PrivateUsersLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-3 text-[#901214]">
-      <span className="relative flex h-8 w-8 items-center justify-center">
-        <span className="absolute left-1 top-1 h-5 w-5 rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-        <span className="absolute right-1 top-1 h-5 w-5 -rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-      </span>
-      <span className="font-display text-3xl font-bold leading-none tracking-tight">
-        Luster
-      </span>
-    </Link>
-  );
-}
-
-function PrivateUsersLink({
-  children,
-  href,
-  variant = "secondary",
-}: {
-  children: React.ReactNode;
-  href: string;
-  variant?: "primary" | "secondary";
-}) {
-  return (
-    <Link
-      href={href}
-      className={
-        variant === "primary"
-          ? "inline-flex min-h-11 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(144,18,20,0.14)] transition hover:bg-[#961116]"
-          : "inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
-      }
-    >
-      {children}
-    </Link>
-  );
-}
-
-function PrivateUsersButton({
-  children,
-  disabled,
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214] disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={disabled}
-      type="button"
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PrivateUsersLogoutButton() {
-  const router = useRouter();
-  const clearSession = useAuthStore((state) => state.clearSession);
-  const [isPending, setIsPending] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      setIsPending(true);
-      await authService.logout();
-    } catch {
-      clearSession();
-    } finally {
-      setIsPending(false);
-      router.replace("/login");
-    }
-  };
-
-  return (
-    <PrivateUsersButton disabled={isPending} onClick={handleLogout}>
-      {isPending ? "Signing out..." : "Log Out"}
-    </PrivateUsersButton>
-  );
-}
 
 function PrivateUsersSection({
   eyebrow,
@@ -534,24 +448,6 @@ export function PrivatePersonsManager() {
 
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
-      <nav className="border-b border-[#EABFB9] bg-[#fafafa] px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <PrivateUsersLogo />
-          <div className="hidden items-center gap-8 text-sm font-semibold text-[#2d1718]/72 lg:flex">
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/connections">Connections</Link>
-            <Link href="/compatibility">Compatibility Check</Link>
-            <Link href="/results">Results</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <PrivateUsersLink href="/compatibility" variant="primary">
-              Run Check
-            </PrivateUsersLink>
-            <PrivateUsersLogoutButton />
-          </div>
-        </div>
-      </nav>
-
       <section className="bg-[linear-gradient(180deg,#fffafa_0%,#fdf1f0_100%)] px-6 py-10">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>

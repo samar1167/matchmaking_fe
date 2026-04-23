@@ -1,19 +1,11 @@
 "use client";
 
 import { isAxiosError } from "axios";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AppScaffold } from "@/components/layout/app-scaffold";
+import type { ButtonHTMLAttributes } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  AlertMessage,
-  BodyText,
-  EmptyState,
-  designSystem,
-} from "@/components/ui/design-system";
 import { GooglePlaceInput } from "@/components/ui/google-place-input";
 import { Input, SelectInput } from "@/components/ui/input";
-import { SectionCard } from "@/components/ui/section-card";
 import { authService } from "@/services/authService";
 import { matchPreferencesService } from "@/services/matchPreferencesService";
 import { profileService } from "@/services/profileService";
@@ -372,10 +364,105 @@ const formatJsonBlock = (value: Record<string, unknown> | undefined) => {
   return JSON.stringify(value, null, 2);
 };
 
+const profilePanelClass =
+  "rounded-xl border border-[#EABFB9] bg-[#fffafa] p-5";
+const profileFieldCardClass =
+  "rounded-lg border border-[#EABFB9] bg-[#fffafa] p-4";
+
+function ProfileFormButton({
+  children,
+  className = "",
+  variant = "primary",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost";
+}) {
+  const variantClass =
+    variant === "primary"
+      ? "bg-[#901214] text-white shadow-[0_14px_28px_rgba(144,18,20,0.14)] hover:bg-[#961116]"
+      : variant === "secondary"
+        ? "border border-[#C07771] bg-[#fafafa] text-[#901214] hover:border-[#901214]"
+        : "bg-transparent text-[#901214] hover:bg-[#fdf1f0]";
+
+  return (
+    <button
+      className={`inline-flex min-h-11 items-center justify-center rounded-md px-5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${variantClass} ${className}`}
+      type="button"
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ProfileFieldCard({ children }: { children: React.ReactNode }) {
+  return <div className={profileFieldCardClass}>{children}</div>;
+}
+
+function ProfileSection({
+  actions,
+  children,
+  description,
+  eyebrow,
+  title,
+}: {
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  description: string;
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_14px_34px_rgba(144,18,20,0.06)]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+            {eyebrow}
+          </p>
+          <h2 className="mt-2 font-display text-3xl font-bold leading-tight text-[#2d1718]">
+            {title}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#2d1718]/70">
+            {description}
+          </p>
+        </div>
+        {actions ? <div className="shrink-0">{actions}</div> : null}
+      </div>
+      <div className="mt-6">{children}</div>
+    </section>
+  );
+}
+
+function ProfileEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-[#C07771] bg-[#fffafa] p-6 text-sm leading-6 text-[#2d1718]/65">
+      {children}
+    </div>
+  );
+}
+
+function ProfileAlert({
+  children,
+  tone = "error",
+}: {
+  children: React.ReactNode;
+  tone?: "error" | "success";
+}) {
+  return (
+    <div
+      className={
+        tone === "success"
+          ? "rounded-lg border border-[#EABFB9] bg-[#fafafa] px-4 py-3 text-sm font-semibold text-[#7F533E]"
+          : "rounded-lg border border-[#EABFB9] bg-[#fdf1f0] px-4 py-3 text-sm font-semibold whitespace-pre-wrap text-[#901214]"
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ProfileManager() {
-  const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const clearSession = useAuthStore((state) => state.clearSession);
   const setUser = useAuthStore((state) => state.setUser);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [values, setValues] = useState<ProfileFormValues>(emptyValues);
@@ -402,7 +489,6 @@ export function ProfileManager() {
   const [matchPreferenceMessage, setMatchPreferenceMessage] = useState<string | null>(null);
   const [isLoadingMatchPreference, setIsLoadingMatchPreference] = useState(false);
   const [isSavingMatchPreference, setIsSavingMatchPreference] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [activePanel, setActivePanel] = useState<"edit" | "password" | "matchPreference" | null>(
     null,
   );
@@ -700,13 +786,6 @@ export function ProfileManager() {
     }
   };
 
-  const handleResetMatchPreference = () => {
-    setMatchPreferenceValues(mapMatchPreferenceToFormValues(matchPreference));
-    setMatchPreferenceErrors({});
-    setMatchPreferenceError(null);
-    setMatchPreferenceMessage(null);
-  };
-
   const handleSaveMatchPreference = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -738,48 +817,37 @@ export function ProfileManager() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await authService.logout();
-    } catch {
-      clearSession();
-    } finally {
-      setIsLoggingOut(false);
-      router.replace("/login");
-    }
-  };
+  const activePanelTitle = ""
+  const activePanelDescription =
+    activePanel === "edit"
+      ? "Update your saved profile details only when needed."
+      : activePanel === "password"
+        ? "Update your password only when needed."
+        : activePanel === "matchPreference"
+          ? "Set the criteria used to search possible matches from the database."
+          : "Review your saved details here. Open an action only when you want to change something.";
+  const profileStatus = isLoading ? "Loading" : profile ? "Saved" : "Missing";
 
   return (
-    <AppScaffold
-      title="Profile"
-      description="Create and maintain your own birth profile so compatibility runs always use the most accurate source data."
-    >
-      <div className="space-y-8">
-        <SectionCard
+    <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
+      <section className="bg-[linear-gradient(180deg,#fffafa_0%,#fdf1f0_100%)] px-6 py-10">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <div>
+            <p className="inline-flex rounded-full bg-[#EABFB9] px-4 py-2 text-sm font-bold text-[#901214]">
+              personal profile
+            </p>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-[#2d1718]/72">
+              Maintain your latest profile to get the most accurate results.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto grid max-w-7xl gap-8 px-6 py-8">
+        <ProfileSection
           eyebrow="Profile"
-          title={
-            activePanel === "edit"
-              ? profile
-                ? "Edit your profile"
-                : "Create your profile"
-              : activePanel === "password"
-                ? "Password access"
-                : activePanel === "matchPreference"
-                  ? "Match preference"
-                  : profile
-                    ? "Your profile"
-                    : "Create your profile"
-          }
-          description={
-            activePanel === "edit"
-              ? "Update your saved profile details only when needed."
-              : activePanel === "password"
-                ? "Update your password only when needed."
-                : activePanel === "matchPreference"
-                  ? "Set the criteria used to search possible matches from the database."
-                  : "Review your saved details here. Open an action only when you want to change something."
-          }
+          title={activePanelTitle}
+          description={activePanelDescription}
           actions={
             <div className="flex flex-wrap gap-3">
               <Button
@@ -818,19 +886,11 @@ export function ProfileManager() {
               >
                 {isLoadingMatchPreference ? "Loading..." : "Match Preference"}
               </Button>
-              <Button
-                type="button"
-                variant="danger"
-                disabled={isLoggingOut}
-                onClick={handleLogout}
-              >
-                {isLoggingOut ? "Signing out..." : "Logout"}
-              </Button>
             </div>
           }
         >
           {isLoading ? (
-            <EmptyState>Loading your saved profile...</EmptyState>
+            <ProfileEmpty>Loading your saved profile...</ProfileEmpty>
           ) : activePanel === "edit" ? (
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -856,8 +916,8 @@ export function ProfileManager() {
                   />
                 </div>
 
-                <div className={`${designSystem.inset} flex flex-col items-center gap-4 p-5`}>
-                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(144,18,20,0.12)] bg-[#fafafa]/80">
+                <div className={`${profilePanelClass} flex flex-col items-center gap-4`}>
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-[#EABFB9] bg-[#fafafa]">
                     {activeProfilePicture ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -878,12 +938,12 @@ export function ProfileManager() {
                       </span>
                       <input
                         accept="image/*"
-                        className="block w-full text-sm text-foreground/72 file:mr-4 file:rounded-full file:border-0 file:bg-[rgba(144,18,20,0.08)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-[rgba(144,18,20,0.12)]"
+                        className="block w-full text-sm text-foreground/72 file:mr-4 file:rounded-md file:border-0 file:bg-[#fdf1f0] file:px-4 file:py-2 file:text-sm file:font-bold file:text-[#901214] hover:file:bg-[#f5d5c8]"
                         type="file"
                         onChange={handleProfilePictureChange}
                       />
                     </label>
-                    <Button
+                    <ProfileFormButton
                       className="w-full"
                       disabled={!activeProfilePicture || isSaving}
                       type="button"
@@ -891,7 +951,7 @@ export function ProfileManager() {
                       onClick={handleRemoveProfilePicture}
                     >
                       Remove picture
-                    </Button>
+                    </ProfileFormButton>
                   </div>
                 </div>
               </div>
@@ -941,7 +1001,7 @@ export function ProfileManager() {
                 />
               </div>
 
-              <label className={`${designSystem.inset} flex items-start gap-3 p-5`}>
+              <label className={`${profilePanelClass} flex items-start gap-3`}>
                 <input
                   checked={values.public_match}
                   className="mt-1 h-4 w-4 rounded border-[rgba(144,18,20,0.25)] text-primary accent-primary"
@@ -955,26 +1015,16 @@ export function ProfileManager() {
                 </span>
               </label>
 
-              {error ? <AlertMessage className="whitespace-pre-wrap">{error}</AlertMessage> : null}
+              {error ? <ProfileAlert>{error}</ProfileAlert> : null}
               {successMessage ? (
-                <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
-                  {successMessage}
-                </AlertMessage>
+                <ProfileAlert tone="success">{successMessage}</ProfileAlert>
               ) : null}
 
               <div className="flex flex-wrap gap-3">
-                <Button disabled={isSaving} type="submit">
+                <ProfileFormButton disabled={isSaving} type="submit">
                   {submitLabel}
-                </Button>
-                <Button
-                  disabled={isSaving}
-                  type="button"
-                  variant="secondary"
-                  onClick={handleReset}
-                >
-                  Reset fields
-                </Button>
-                <Button
+                </ProfileFormButton>
+                <ProfileFormButton
                   type="button"
                   variant="ghost"
                   onClick={() => {
@@ -983,21 +1033,23 @@ export function ProfileManager() {
                   }}
                 >
                   Close
-                </Button>
+                </ProfileFormButton>
               </div>
             </form>
           ) : activePanel === "password" ? (
-            <div className={`${designSystem.inset} space-y-5 p-5`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className={`${profilePanelClass} space-y-5`}>
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EABFB9] pb-5">
                 <div>
-                  <p className="text-sm font-medium text-primary">Change password</p>
-                  <BodyText className="mt-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+                    Change Password
+                  </p>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#2d1718]/70">
                     Use your current password, then choose a new one with at least eight characters.
-                  </BodyText>
+                  </p>
                 </div>
-                <Button
+                <ProfileFormButton
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   onClick={() => {
                     setActivePanel(null);
                     setChangePasswordValues(emptyChangePasswordValues);
@@ -1006,7 +1058,7 @@ export function ProfileManager() {
                   }}
                 >
                   Close
-                </Button>
+                </ProfileFormButton>
               </div>
 
               <form className="space-y-4" onSubmit={handleChangePassword}>
@@ -1051,19 +1103,17 @@ export function ProfileManager() {
                 </div>
 
                 {passwordError ? (
-                  <AlertMessage className="whitespace-pre-wrap">{passwordError}</AlertMessage>
+                  <ProfileAlert>{passwordError}</ProfileAlert>
                 ) : null}
                 {passwordMessage ? (
-                  <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
-                    {passwordMessage}
-                  </AlertMessage>
+                  <ProfileAlert tone="success">{passwordMessage}</ProfileAlert>
                 ) : null}
 
                 <div className="flex flex-wrap gap-3">
-                  <Button disabled={isChangingPassword} type="submit">
+                  <ProfileFormButton disabled={isChangingPassword} type="submit">
                     {isChangingPassword ? "Updating..." : "Update password"}
-                  </Button>
-                  <Button
+                  </ProfileFormButton>
+                  <ProfileFormButton
                     type="button"
                     variant="secondary"
                     onClick={() => {
@@ -1073,22 +1123,24 @@ export function ProfileManager() {
                     }}
                   >
                     Clear
-                  </Button>
+                  </ProfileFormButton>
                 </div>
               </form>
             </div>
           ) : activePanel === "matchPreference" ? (
-            <div className={`${designSystem.inset} space-y-6 p-5`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className={`${profilePanelClass} space-y-6`}>
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EABFB9] pb-5">
                 <div>
-                  <p className="text-sm font-medium text-primary">Match Preference</p>
-                  <BodyText className="mt-2">
-                    These fields are sent to the match preference API for database match searches.
-                  </BodyText>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+                    Match Criteria
+                  </p>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#2d1718]/70">
+                    Select your personal preferences to get accurate matche suggestions.
+                  </p>
                 </div>
-                <Button
+                <ProfileFormButton
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   onClick={() => {
                     setActivePanel(null);
                     setMatchPreferenceError(null);
@@ -1097,11 +1149,11 @@ export function ProfileManager() {
                   }}
                 >
                   Close
-                </Button>
+                </ProfileFormButton>
               </div>
 
               {isLoadingMatchPreference ? (
-                <EmptyState>Loading match preferences...</EmptyState>
+                <ProfileEmpty>Loading match preferences...</ProfileEmpty>
               ) : (
                 <form className="space-y-6" onSubmit={handleSaveMatchPreference}>
                   <div className="grid gap-5 md:grid-cols-3">
@@ -1170,67 +1222,17 @@ export function ProfileManager() {
                     />
                   </div>
 
-                  <div className="space-y-4">
-                    <p className={designSystem.label}>Compatibility Methods</p>
-                    <div className="grid gap-3 md:grid-cols-5">
-                      {matchPreferenceMethodChoices.map(({ field, label }) => (
-                        <label
-                          className={`${designSystem.inset} flex min-h-20 items-start gap-3 p-4`}
-                          key={field}
-                        >
-                          <input
-                            checked={matchPreferenceValues[field]}
-                            className="mt-1 h-4 w-4 rounded border-[rgba(144,18,20,0.25)] text-primary accent-primary"
-                            type="checkbox"
-                            onChange={(event) =>
-                              handleMatchPreferenceChange(field, event.target.checked)
-                            }
-                          />
-                          <span className="text-sm font-medium text-primary">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
                   {matchPreferenceError ? (
-                    <AlertMessage className="whitespace-pre-wrap">
-                      {matchPreferenceError}
-                    </AlertMessage>
+                    <ProfileAlert>{matchPreferenceError}</ProfileAlert>
                   ) : null}
                   {matchPreferenceMessage ? (
-                    <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
-                      {matchPreferenceMessage}
-                    </AlertMessage>
+                    <ProfileAlert tone="success">{matchPreferenceMessage}</ProfileAlert>
                   ) : null}
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className={`${designSystem.inset} p-4`}>
-                      <p className={designSystem.label}>Age Range</p>
-                      <p className="mt-3 text-lg font-medium text-primary">
-                        {displayNumberValue(matchPreferenceValues.preferred_age_min)} -{" "}
-                        {displayNumberValue(matchPreferenceValues.preferred_age_max)}
-                      </p>
-                    </div>
-                    <div className={`${designSystem.inset} p-4`}>
-                      <p className={designSystem.label}>Preferred Gender</p>
-                      <p className="mt-3 text-lg font-medium text-primary">
-                        {displayChoiceValue(matchPreferenceValues.preferred_gender, genderChoices)}
-                      </p>
-                    </div>
-                  </div>
-
                   <div className="flex flex-wrap gap-3">
-                    <Button disabled={isSavingMatchPreference} type="submit">
+                    <ProfileFormButton disabled={isSavingMatchPreference} type="submit">
                       {isSavingMatchPreference ? "Saving..." : "Save match preference"}
-                    </Button>
-                    <Button
-                      disabled={isSavingMatchPreference}
-                      type="button"
-                      variant="secondary"
-                      onClick={handleResetMatchPreference}
-                    >
-                      Reset fields
-                    </Button>
+                    </ProfileFormButton>
                   </div>
                 </form>
               )}
@@ -1238,8 +1240,8 @@ export function ProfileManager() {
           ) : (
             <div className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div className={`${designSystem.inset} flex flex-col items-center gap-4 p-5`}>
-                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.75rem] border border-[rgba(144,18,20,0.12)] bg-[#fafafa]/80">
+                <div className={`${profilePanelClass} flex flex-col items-center gap-4`}>
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-[#EABFB9] bg-[#fafafa]">
                     {activeProfilePicture ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -1254,79 +1256,81 @@ export function ProfileManager() {
                     )}
                   </div>
                   <div className="text-center">
-                    <p className="font-display text-3xl font-semibold text-primary">
+                    <p className="font-display text-3xl font-bold tracking-tight text-[#2d1718]">
                       {displayName}
                     </p>
-                    <BodyText className="mt-2">{accountLabel}</BodyText>
+                    <p className="mt-2 text-sm leading-6 text-[#2d1718]/70">
+                      {accountLabel}
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       First Name
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.first_name)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Last Name
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.last_name)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Gender
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayChoiceValue(profile?.gender, genderChoices)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Date of Birth
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.date_of_birth)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Time of Birth
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.time_of_birth)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5 md:col-span-2`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={`${profileFieldCardClass} md:col-span-2`}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Place of Birth
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.place_of_birth)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Latitude
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.latitude)}
                     </p>
                   </div>
-                  <div className={`${designSystem.inset} p-5`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                  <div className={profileFieldCardClass}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
                       Longitude
                     </p>
-                    <p className="mt-3 text-lg font-medium text-primary">
+                    <p className="mt-2 text-sm font-bold text-[#901214]">
                       {displayValue(values.longitude)}
                     </p>
                   </div>
-                  <label className={`${designSystem.inset} flex items-start gap-3 p-5 md:col-span-2`}>
+                  <label className={`${profileFieldCardClass} flex items-start gap-3 md:col-span-2`}>
                     <input
                       checked={values.public_match}
                       className="mt-1 h-4 w-4 rounded border-[rgba(144,18,20,0.25)] text-primary accent-primary"
@@ -1341,16 +1345,14 @@ export function ProfileManager() {
                 </div>
               </div>
 
-              {error ? <AlertMessage className="whitespace-pre-wrap">{error}</AlertMessage> : null}
+              {error ? <ProfileAlert>{error}</ProfileAlert> : null}
               {successMessage ? (
-                <AlertMessage className="border-[#eabfb9] bg-[#fafafa] text-[#7f533e]">
-                  {successMessage}
-                </AlertMessage>
+                <ProfileAlert tone="success">{successMessage}</ProfileAlert>
               ) : null}
             </div>
           )}
-        </SectionCard>
+        </ProfileSection>
       </div>
-    </AppScaffold>
+    </main>
   );
 }

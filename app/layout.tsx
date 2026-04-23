@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { AppHeader } from "@/components/layout/app-header";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -28,7 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${manrope.variable} ${cormorant.variable}`}>
-        <AuthGuard>{children}</AuthGuard>
+        <AuthGuard>
+          <AppHeader />
+          {children}
+        </AuthGuard>
       </body>
     </html>
   );

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { LogoutButton } from "@/components/auth/logout-button";
 import { HeroSection } from "@/components/ui/design-system";
 
 interface AppScaffoldProps {
@@ -37,7 +36,6 @@ export function AppScaffold({
             </div>
             <div className="flex flex-wrap gap-3">
               {actions}
-              <LogoutButton />
             </div>
           </div>
         </HeroSection>
