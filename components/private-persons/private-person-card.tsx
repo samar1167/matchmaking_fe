@@ -2,7 +2,7 @@
 
 import {
   CompatibilityScoreLine,
-  formatCompatibilityScore,
+  getCompatibilityCategory,
 } from "@/components/ui/compatibility-score";
 import type { StoredCompatibilityResult } from "@/store/resultsStore";
 import type { PrivatePerson } from "@/types/private-persons";
@@ -139,7 +139,7 @@ export function PrivatePersonCard({
               </p>
               {compatibilityResult ? (
                 <p className="mt-1 font-display text-3xl font-bold leading-none text-[#901214]">
-                  {formatCompatibilityScore(compatibilityResult.score)}
+                  {getCompatibilityCategory(compatibilityResult.score)}
                 </p>
               ) : (
                 <p className="mt-2 text-sm font-bold leading-5 text-[#901214]">

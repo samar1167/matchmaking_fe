@@ -12,6 +12,7 @@ export interface StoredCompatibilityResult {
   id: string;
   personId: string;
   personName: string;
+  matchType?: "private" | "public";
   score: number;
   summary?: string;
   createdAt?: string;

@@ -391,7 +391,7 @@ export function DashboardOverview() {
               <DashboardAction href="/compatibility" variant="primary">
                 Check Compatibility →
               </DashboardAction>
-              <DashboardAction href="/top-scores">Find Matches →</DashboardAction>
+              <DashboardAction href="/connections">Find Matches →</DashboardAction>
             </div>
           </div>
           <DashboardIllustration />

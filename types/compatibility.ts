@@ -14,9 +14,8 @@ export interface CompatibilityResult {
   description?: string;
   created_at?: string;
   matched_user?: number | string;
-  matched_user_username?: string;
   matched_private_person?: number | string;
-  matched_private_person_name?: string;
+  matched_user_name?: string;
   is_private_match?: boolean;
   parameters?: CompatibilityParameter[];
   [key: string]: unknown;
@@ -25,7 +24,7 @@ export interface CompatibilityResult {
 export interface CompatibilityParameter {
   key: string;
   label: string;
-  score: number | string;
+  score: number | string | null;
   locked: boolean;
 }
 

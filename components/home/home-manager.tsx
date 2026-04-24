@@ -683,7 +683,7 @@ function PublicLandingPage() {
                 Analyze your compatibility privately and get honest insights.
               </p>
               <div className="mt-4">
-                <LandingButton href="/compatibility">Analyze a Relationship →</LandingButton>
+                <LandingButton href="/private-persons">Analyze a Relationship →</LandingButton>
               </div>
             </div>
             <UseCaseIllustration variant="known" />
@@ -698,7 +698,7 @@ function PublicLandingPage() {
                 Discover people who match your relationship profile and values.
               </p>
               <div className="mt-4">
-                <LandingButton href="/register">Find Matches →</LandingButton>
+                <LandingButton href="/connections">Find Matches →</LandingButton>
               </div>
             </div>
             <PersonCluster />

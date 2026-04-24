@@ -66,6 +66,28 @@ export const getCompatibilityImpact = (score: number): CompatibilityImpact => {
 export const formatCompatibilityScore = (score: number) =>
   getScoreOnTen(score).toFixed(1);
 
+export const getCompatibilityCategory = (score: number) => {
+  const scoreOnTen = getScoreOnTen(score);
+
+  if (scoreOnTen > 9) {
+    return "Excellent";
+  }
+
+  if (scoreOnTen >= 7) {
+    return "Very Good";
+  }
+
+  if (scoreOnTen >= 5) {
+    return "Good";
+  }
+
+  if (scoreOnTen >= 3) {
+    return "Average";
+  }
+
+  return "Poor";
+};
+
 export function CompatibilityScoreRing({
   className,
   score,
@@ -79,15 +101,16 @@ export function CompatibilityScoreRing({
   const impact = getCompatibilityImpact(score);
   const styles = impactStyles[impact];
   const degrees = Math.max(8, (scoreOnTen / scoreMax) * 360);
+  const scoreCategory = getCompatibilityCategory(score);
   const sizeClass =
     size === "lg" ? "h-28 w-28" : size === "sm" ? "h-20 w-20" : "h-24 w-24";
   const textClass =
-    size === "lg" ? "text-4xl" : size === "sm" ? "text-2xl" : "text-3xl";
+    size === "lg" ? "text-lg" : size === "sm" ? "text-sm" : "text-base";
 
   return (
     <div className={cn("flex flex-col items-center font-sans", className)}>
       <div
-        aria-label={`Compatibility score ${formatCompatibilityScore(score)} out of 10`}
+        aria-label={`Compatibility score ${scoreCategory}`}
         aria-valuemax={scoreMax}
         aria-valuemin={0}
         aria-valuenow={scoreOnTen}
@@ -102,8 +125,14 @@ export function CompatibilityScoreRing({
       >
         <div className="grid h-full w-full place-items-center rounded-full bg-[rgba(250,250,250,0.96)]">
           <div className="text-center">
-            <span className={cn("block font-display font-semibold", styles.text, textClass)}>
-              {formatCompatibilityScore(score)}
+            <span
+              className={cn(
+                "block px-2 font-display font-semibold leading-tight",
+                styles.text,
+                textClass,
+              )}
+            >
+              {scoreCategory}
             </span>
           </div>
         </div>
@@ -127,13 +156,14 @@ export function CompatibilityScoreLine({
   const impact = getCompatibilityImpact(score);
   const styles = impactStyles[impact];
   const percentage = (scoreOnTen / scoreMax) * 100;
+  const scoreCategory = getCompatibilityCategory(score);
   const mutedText = tone === "dark" ? "text-[#eabfb9]/72" : "text-foreground/52";
   const strongText = tone === "dark" ? styles.darkText : styles.text;
   const track = tone === "dark" ? "bg-white/10" : "bg-[rgba(144,18,20,0.1)]";
 
   return (
     <div
-      aria-label={`${label} ${formatCompatibilityScore(score)} out of 10`}
+      aria-label={`${label} ${scoreCategory}`}
       aria-valuemax={scoreMax}
       aria-valuemin={0}
       aria-valuenow={scoreOnTen}
@@ -146,8 +176,8 @@ export function CompatibilityScoreLine({
             {label}
           </p>
         </div>
-        <p className={cn("font-display text-3xl font-semibold leading-none", strongText)}>
-          {formatCompatibilityScore(score)}
+        <p className={cn("font-display text-2xl font-semibold leading-none", strongText)}>
+          {scoreCategory}
         </p>
       </div>
       <div className={cn("mt-3 h-2.5 overflow-hidden rounded-full", track)}>

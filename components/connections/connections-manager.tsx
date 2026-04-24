@@ -1,13 +1,14 @@
 "use client";
 
 import { isAxiosError } from "axios";
+import Link from "next/link";
 import type { ButtonHTMLAttributes } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ChatDialog } from "@/components/chat/chat-dialog";
 import {
   CompatibilityScoreLine,
   CompatibilityScoreRing,
-  formatCompatibilityScore,
+  getCompatibilityCategory,
   isNumericCompatibilityValue,
 } from "@/components/ui/compatibility-score";
 import { useChatConversationUnreadCounts } from "@/hooks/useChatNotifications";
@@ -313,7 +314,7 @@ function ConnectionsSection({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -487,6 +488,10 @@ function CompatibilityDetailsDialog({
   parameters: PlanParameters;
   result: StoredCompatibilityResult;
 }) {
+  const hasLockedInsights = result.parameters.some((parameter) =>
+    shouldBlurParameter(parameter, parameters),
+  );
+
   return (
     <div
       aria-modal="true"
@@ -499,7 +504,7 @@ function CompatibilityDetailsDialog({
             <CompatibilityScoreRing score={result.score} size="sm" />
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
-                Compatibility Detail
+                Compatibility
               </p>
               <h3 className="mt-2 font-display text-4xl font-bold leading-tight text-[#2d1718]">
                 {result.personName}
@@ -561,6 +566,18 @@ function CompatibilityDetailsDialog({
             </div>
           )}
         </div>
+
+        {hasLockedInsights ? (
+          <div className="mt-5 rounded-lg border border-[#EABFB9] bg-[#fffafa] px-4 py-4 text-sm leading-6 text-[#2d1718]/72">
+            <p>Free plan locks Premium insights. Purchase Credits to unlock.</p>
+            <Link
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md bg-[#901214] px-4 text-sm font-bold text-white transition hover:bg-[#961116]"
+              href="/dashboard#credits-access"
+            >
+              Purchase Credits
+            </Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -609,6 +626,56 @@ function DisconnectConfirmDialog({
             onClick={onConfirm}
           >
             {isSubmitting ? "Disconnecting..." : "Disconnect"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompatibilityConfirmDialog({
+  isSubmitting,
+  onCancel,
+  onConfirm,
+  personName,
+}: {
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  personName: string;
+}) {
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-50 grid place-items-center bg-[#2d1718]/50 px-4 py-6"
+      role="dialog"
+    >
+      <div className="w-full max-w-md rounded-xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_24px_80px_rgba(45,23,24,0.28)]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+          Confirm Compatibility
+        </p>
+        <h3 className="mt-3 font-display text-3xl font-bold text-[#2d1718]">
+          {personName}
+        </h3>
+        <p className="mt-4 text-sm font-semibold leading-6 text-[#2d1718]/72">
+          Checking Compatibility reqired 1 credit. Say yes to continue
+        </p>
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSubmitting}
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white transition hover:bg-[#961116] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isSubmitting}
+            type="button"
+            onClick={onConfirm}
+          >
+            {isSubmitting ? "Checking..." : "Yes"}
           </button>
         </div>
       </div>
@@ -707,7 +774,7 @@ function AcceptedConnectionCard({
               </p>
               {compatibilityResult ? (
                 <p className="mt-1 font-display text-3xl font-bold leading-none text-[#901214]">
-                  {formatCompatibilityScore(compatibilityResult.score)}
+                  {getCompatibilityCategory(compatibilityResult.score)}
                 </p>
               ) : (
                 <p className="mt-2 text-sm font-bold leading-5 text-[#901214]">
@@ -789,7 +856,7 @@ function ConnectionRow({
                   Overall compatibility
                 </span>
                 <span className="font-display text-xl font-bold leading-none text-[#901214]">
-                  {formatCompatibilityScore(compatibilityResult.score)}
+                  {getCompatibilityCategory(compatibilityResult.score)}
                 </span>
               </div>
             ) : null}
@@ -860,6 +927,7 @@ export function ConnectionsManager() {
   const [sentRequestsPage, setSentRequestsPage] = useState(1);
   const [suggestionsPage, setSuggestionsPage] = useState(1);
   const [disconnectTarget, setDisconnectTarget] = useState<Connection | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<Connection | null>(null);
   const [chatConnection, setChatConnection] = useState<Connection | null>(null);
   const [detailResult, setDetailResult] = useState<StoredCompatibilityResult | null>(
     null,
@@ -1058,6 +1126,7 @@ export function ConnectionsManager() {
         extractActionErrorMessage(error, "Compatibility check failed. Please try again."),
       );
     } finally {
+      setConfirmTarget(null);
       setPendingAction(null);
     }
   };
@@ -1075,6 +1144,9 @@ export function ConnectionsManager() {
   const disconnectTargetPeer = disconnectTarget
     ? getConnectionPeer(disconnectTarget, currentProfile?.id)
     : null;
+  const confirmTargetPeer = confirmTarget
+    ? getConnectionPeer(confirmTarget, currentProfile?.id)
+    : null;
 
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
@@ -1085,11 +1157,10 @@ export function ConnectionsManager() {
               relationship network
             </p>
             <h1 className="mt-5 max-w-3xl font-display text-6xl font-bold leading-[1.05] tracking-tight text-[#2d1718]">
-              Connections that deserve clear context.
+              Build connections
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#2d1718]/72">
-              Manage accepted connections, review pending requests, and discover
-              suggested public matches from one calm workspace.
+              Find compatible people from our network. 
             </p>
           </div>
           <div className="rounded-2xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_18px_42px_rgba(144,18,20,0.1)]">
@@ -1167,7 +1238,7 @@ export function ConnectionsManager() {
                       isDisconnecting={pendingAction === `disconnect-${connection.id}`}
                       unreadCount={unreadCount}
                       onChat={() => setChatConnection(connection)}
-                      onCheckCompatibility={() => handleCompatibilityCheck(connection)}
+                      onCheckCompatibility={() => setConfirmTarget(connection)}
                       onDisconnect={() => setDisconnectTarget(connection)}
                       onDetails={() => openCompatibilityDetails(compatibilityResult, peer)}
                     />
@@ -1186,7 +1257,17 @@ export function ConnectionsManager() {
         <ConnectionsSection
           eyebrow="Suggested Match for you"
           title=""
-          description="Suggestions are based on your Match Connection preferences."
+          description={
+            <>
+              Suggestions are based on your Match Connection preferences.{" "}
+              <Link
+                className="font-bold text-[#901214] underline-offset-4 transition hover:underline"
+                href="/profile#match-preference"
+              >
+                View your Match Preference →
+              </Link>
+            </>
+          }
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {isLoading ? (
@@ -1392,6 +1473,16 @@ export function ConnectionsManager() {
               });
             }}
             personName={getProfileDisplayName(disconnectTargetPeer)}
+          />
+        ) : null}
+        {confirmTarget && confirmTargetPeer ? (
+          <CompatibilityConfirmDialog
+            isSubmitting={pendingAction === `compatibility-${confirmTarget.id}`}
+            onCancel={() => setConfirmTarget(null)}
+            onConfirm={() => {
+              void handleCompatibilityCheck(confirmTarget);
+            }}
+            personName={getProfileDisplayName(confirmTargetPeer)}
           />
         ) : null}
         {detailResult ? (

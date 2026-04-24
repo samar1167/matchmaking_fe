@@ -756,7 +756,7 @@ export function ProfileManager() {
     }
   };
 
-  const handleOpenMatchPreference = async () => {
+  const handleOpenMatchPreference = useCallback(async () => {
     setActivePanel("matchPreference");
     setError(null);
     setSuccessMessage(null);
@@ -784,7 +784,19 @@ export function ProfileManager() {
     } finally {
       setIsLoadingMatchPreference(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (window.location.hash === "#match-preference") {
+      void handleOpenMatchPreference();
+    }
+  }, [handleOpenMatchPreference]);
+
+  useEffect(() => {
+    if (activePanel === "matchPreference" && window.location.hash === "#match-preference") {
+      document.getElementById("match-preference")?.scrollIntoView({ block: "start" });
+    }
+  }, [activePanel]);
 
   const handleSaveMatchPreference = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -968,6 +980,7 @@ export function ProfileManager() {
                   error={errors.time_of_birth}
                   label="Time of Birth"
                   type="time"
+                  step="1"
                   value={values.time_of_birth}
                   onChange={(event) => handleChange("time_of_birth", event.target.value)}
                 />
@@ -1128,7 +1141,7 @@ export function ProfileManager() {
               </form>
             </div>
           ) : activePanel === "matchPreference" ? (
-            <div className={`${profilePanelClass} space-y-6`}>
+            <div id="match-preference" className={`${profilePanelClass} space-y-6`}>
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EABFB9] pb-5">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">

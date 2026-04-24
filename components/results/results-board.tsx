@@ -89,6 +89,39 @@ const sortByScore = (
   );
 };
 
+const getMatchType = (result: StoredCompatibilityResult) => {
+  if (result.matchType) {
+    return result.matchType;
+  }
+
+  const raw = result.raw;
+  const hasValue = (value: unknown) => value !== null && value !== undefined;
+
+  if (
+    raw.is_private_match === true 
+  ) {
+    return "private";
+  }
+
+  return "public";
+};
+
+function MatchTypeBadge({ result }: { result: StoredCompatibilityResult }) {
+  const matchType = getMatchType(result);
+
+  return (
+    <span
+      className={
+        matchType === "private"
+          ? "inline-flex rounded-full border border-[#C07771] bg-[#fdf1f0] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#901214]"
+          : "inline-flex rounded-full border border-[#7F533E]/30 bg-[#901214] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#fdf1f0]"
+      }
+    >
+      {matchType === "private" ? "Private" : "Connection"}
+    </span>
+  );
+}
+
 const LockedParameterValue = ({
   value,
   cta,
@@ -126,9 +159,12 @@ function ResultCard({
         <div className="flex items-center gap-4">
           <CompatibilityScoreRing score={result.score} size="sm" />
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">
-              Compatibility Score
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-accent">
+                Compatibility Score
+              </p>
+              <MatchTypeBadge result={result} />
+            </div>
             {showPersonName ? (
               <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-primary">
                 {result.personName}
@@ -242,6 +278,19 @@ export function ResultsBoard({
     variant === "scores" && pageSize
       ? sortedResults.slice((currentPage - 1) * pageSize, currentPage * pageSize)
       : sortedResults;
+  const visiblePageNumbers = useMemo(() => {
+    const pages = new Set([1, totalPages, currentPage]);
+
+    if (currentPage > 1) {
+      pages.add(currentPage - 1);
+    }
+
+    if (currentPage < totalPages) {
+      pages.add(currentPage + 1);
+    }
+
+    return Array.from(pages).sort((left, right) => left - right);
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -294,11 +343,35 @@ export function ResultsBoard({
               >
                 Previous
               </Button>
-              <span className="text-sm font-medium text-foreground/65">
-                Showing {(currentPage - 1) * pageSize + 1}-
-                {Math.min(currentPage * pageSize, sortedResults.length)} of{" "}
-                {sortedResults.length}
-              </span>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {visiblePageNumbers.map((pageNumber, index) => {
+                  const previousPage = visiblePageNumbers[index - 1];
+                  const showGap = previousPage !== undefined && pageNumber - previousPage > 1;
+
+                  return (
+                    <div className="flex items-center gap-2" key={pageNumber}>
+                      {showGap ? (
+                        <span className="text-sm font-semibold text-foreground/45">
+                          ...
+                        </span>
+                      ) : null}
+                      <button
+                        aria-label={`Go to page ${pageNumber}`}
+                        aria-current={currentPage === pageNumber ? "page" : undefined}
+                        className={
+                          currentPage === pageNumber
+                            ? "inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-[#901214] px-3 text-sm font-bold text-white"
+                            : "inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-[rgba(144,18,20,0.14)] bg-[#fafafa] px-3 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
+                        }
+                        type="button"
+                        onClick={() => setCurrentPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
               <Button
                 disabled={currentPage === totalPages}
                 onClick={() =>
@@ -308,6 +381,11 @@ export function ResultsBoard({
               >
                 Next
               </Button>
+              <span className="basis-full text-center text-sm font-medium text-foreground/65">
+                Showing {(currentPage - 1) * pageSize + 1}-
+                {Math.min(currentPage * pageSize, sortedResults.length)} of{" "}
+                {sortedResults.length}
+              </span>
             </div>
           ) : null}
         </div>

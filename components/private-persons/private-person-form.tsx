@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Input, SelectInput } from "@/components/ui/input";
 import type {
   CreatePrivatePersonRequest,
   PrivatePerson,
@@ -9,9 +9,12 @@ import type {
 
 export interface PrivatePersonFormValues {
   name: string;
+  gender: string;
   date_of_birth: string;
   time_of_birth: string;
   place_of_birth: string;
+  latitude: string;
+  longitude: string;
 }
 
 interface PrivatePersonFormProps {
@@ -24,20 +27,36 @@ interface PrivatePersonFormProps {
 
 type ValidationErrors = Partial<Record<keyof PrivatePersonFormValues, string>>;
 
+const genderChoices = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "other", label: "Other" },
+  { value: "any", label: "Any" },
+];
+
 const emptyValues: PrivatePersonFormValues = {
   name: "",
+  gender: "",
   date_of_birth: "",
   time_of_birth: "",
   place_of_birth: "",
+  latitude: "",
+  longitude: "",
 };
 
 export const mapPrivatePersonToFormValues = (
   privatePerson: PrivatePerson,
 ): PrivatePersonFormValues => ({
   name: privatePerson.name,
+  gender: privatePerson.gender ?? "",
   date_of_birth: privatePerson.date_of_birth,
   time_of_birth: privatePerson.time_of_birth ?? "",
   place_of_birth: privatePerson.place_of_birth ?? "",
+  latitude:
+    typeof privatePerson.latitude === "number" ? String(privatePerson.latitude) : "",
+  longitude:
+    typeof privatePerson.longitude === "number" ? String(privatePerson.longitude) : "",
 });
 
 const validatePrivatePersonForm = (
@@ -58,6 +77,14 @@ const validatePrivatePersonForm = (
 
   if (!values.place_of_birth.trim()) {
     errors.place_of_birth = "Place of birth is required.";
+  }
+
+  if (values.latitude && Number.isNaN(Number(values.latitude))) {
+    errors.latitude = "Latitude must be a valid number.";
+  }
+
+  if (values.longitude && Number.isNaN(Number(values.longitude))) {
+    errors.longitude = "Longitude must be a valid number.";
   }
 
   return errors;
@@ -106,9 +133,12 @@ export function PrivatePersonForm({
     try {
       await onSubmit({
         name: values.name.trim(),
+        gender: values.gender || undefined,
         date_of_birth: values.date_of_birth,
         time_of_birth: values.time_of_birth || undefined,
         place_of_birth: values.place_of_birth.trim(),
+        latitude: values.latitude ? Number(values.latitude) : undefined,
+        longitude: values.longitude ? Number(values.longitude) : undefined,
       });
 
       if (mode === "create") {
@@ -141,6 +171,7 @@ export function PrivatePersonForm({
         <Input
           label="Time of Birth (Optional)"
           type="time"
+          step="1"
           value={values.time_of_birth}
           onChange={(event) => handleChange("time_of_birth", event.target.value)}
           error={errors.time_of_birth}
@@ -154,6 +185,41 @@ export function PrivatePersonForm({
         onChange={(event) => handleChange("place_of_birth", event.target.value)}
         error={errors.place_of_birth}
       />
+
+      {mode === "edit" ? (
+        <>
+          <SelectInput
+            label="Gender"
+            options={genderChoices}
+            placeholder="Select gender"
+            value={values.gender}
+            onChange={(event) => handleChange("gender", event.target.value)}
+            error={errors.gender}
+          />
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <Input
+              label="Latitude"
+              type="number"
+              step="any"
+              placeholder="Enter latitude"
+              value={values.latitude}
+              onChange={(event) => handleChange("latitude", event.target.value)}
+              error={errors.latitude}
+            />
+
+            <Input
+              label="Longitude"
+              type="number"
+              step="any"
+              placeholder="Enter longitude"
+              value={values.longitude}
+              onChange={(event) => handleChange("longitude", event.target.value)}
+              error={errors.longitude}
+            />
+          </div>
+        </>
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <button

@@ -3,6 +3,7 @@ import type { ApiMeta, PaginatedResponse } from "@/types/common";
 export interface PrivatePerson {
   id: number;
   name: string;
+  gender?: string | null;
   nickname?: string;
   notes?: string;
   date_of_birth: string;
@@ -17,6 +18,7 @@ export interface PrivatePerson {
 
 export interface CreatePrivatePersonRequest {
   name: string;
+  gender?: string | null;
   nickname?: string;
   notes?: string;
   date_of_birth: string;

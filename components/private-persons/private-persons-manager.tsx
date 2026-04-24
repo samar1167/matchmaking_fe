@@ -1,6 +1,7 @@
 "use client";
 
 import { isAxiosError } from "axios";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   mapPrivatePersonToFormValues,
@@ -157,6 +158,10 @@ function CompatibilityDetailsDialog({
   parameters: PlanParameters;
   result: StoredCompatibilityResult;
 }) {
+  const hasLockedInsights = result.parameters.some((parameter) =>
+    shouldBlurParameter(parameter, parameters),
+  );
+
   return (
     <div
       aria-modal="true"
@@ -169,7 +174,7 @@ function CompatibilityDetailsDialog({
             <CompatibilityScoreRing score={result.score} size="sm" />
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
-                Compatibility Detail
+                Compatibility
               </p>
               <h3 className="mt-2 font-display text-4xl font-bold leading-tight text-[#2d1718]">
                 {result.personName}
@@ -231,6 +236,18 @@ function CompatibilityDetailsDialog({
             </div>
           )}
         </div>
+
+        {hasLockedInsights ? (
+          <div className="mt-5 rounded-lg border border-[#EABFB9] bg-[#fffafa] px-4 py-4 text-sm leading-6 text-[#2d1718]/72">
+            <p>Free plan locks Premium insights. Purchase Credits to unlock.</p>
+            <Link
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md bg-[#901214] px-4 text-sm font-bold text-white transition hover:bg-[#961116]"
+              href="/dashboard#credits-access"
+            >
+              Purchase Credits
+            </Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -286,6 +303,41 @@ function CompatibilityConfirmDialog({
   );
 }
 
+function CompatibilityErrorDialog({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-50 grid place-items-center bg-[#2d1718]/50 px-4 py-6"
+      role="dialog"
+    >
+      <div className="w-full max-w-md rounded-xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_24px_80px_rgba(45,23,24,0.28)]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+          Compatibility Error
+        </p>
+        <h3 className="mt-3 font-display text-3xl font-bold text-[#2d1718]">
+          Unable to check compatibility
+        </h3>
+        <p className="mt-4 text-sm leading-6 text-[#2d1718]/72">{message}</p>
+        <div className="mt-6 flex justify-end">
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white transition hover:bg-[#961116]"
+            type="button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PrivatePersonsManager() {
   const setResults = useResultsStore((state) => state.setResults);
   const { parameters } = usePlanAccess();
@@ -299,6 +351,7 @@ export function PrivatePersonsManager() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [checkingPersonId, setCheckingPersonId] = useState<number | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<PrivatePerson | null>(null);
+  const [compatibilityError, setCompatibilityError] = useState<string | null>(null);
   const [detailResult, setDetailResult] = useState<StoredCompatibilityResult | null>(
     null,
   );
@@ -398,6 +451,7 @@ export function PrivatePersonsManager() {
     try {
       setCheckingPersonId(privatePerson.id);
       setError(null);
+      setCompatibilityError(null);
 
       const response = await compatibilityService.calculate({
         matched_private_person_id: privatePerson.id,
@@ -429,12 +483,12 @@ export function PrivatePersonsManager() {
 
         return nextScores;
       });
-      setConfirmTarget(null);
     } catch (error) {
-      setError(
+      setCompatibilityError(
         extractActionErrorMessage(error, "Compatibility check failed. Please try again."),
       );
     } finally {
+      setConfirmTarget(null);
       setCheckingPersonId(null);
     }
   };
@@ -452,18 +506,18 @@ export function PrivatePersonsManager() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
             <p className="inline-flex rounded-full bg-[#EABFB9] px-4 py-2 text-sm font-bold text-[#901214]">
-              private compatibility library
+              private compatibility section
             </p>
             <h1 className="mt-5 max-w-3xl font-display text-6xl font-bold leading-[1.05] tracking-tight text-[#2d1718]">
-              Private users ready for clear comparison.
+               Private favorites
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#2d1718]/72">
-              Maintain private birth profiles for future compatibility checks.
-              Add, scan, edit, and keep every record easy to review.
+              Maintain private profiles of people  for future compatibility checks.
+              Private profiles are never shared with anyone.
             </p>
           </div>
           <div className="rounded-2xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_18px_42px_rgba(144,18,20,0.1)]">
-            <p className="text-sm font-bold text-[#901214]">Private User Snapshot</p>
+            <p className="text-sm font-bold text-[#901214]">Private Favorite Snapshot</p>
             <div className="mt-5 grid grid-cols-2 gap-4">
               <div className="rounded-xl border border-[#EABFB9] bg-[#fffafa] p-5">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7F533E]">
@@ -498,7 +552,7 @@ export function PrivatePersonsManager() {
 
         {showCreateForm ? (
           <PrivateUsersSection
-            eyebrow="Add Private User"
+            eyebrow="Add Private Favorite"
             title="Create a private profile"
             description="Fill in birth details carefully. All fields are required for a complete compatibility record."
           >
@@ -512,17 +566,17 @@ export function PrivatePersonsManager() {
         ) : null}
 
         <PrivateUsersSection
-          eyebrow="Private Users"
-          title="Saved private users"
+          eyebrow="Private Favorites"
+          title=""
           description={`${privatePersons.length} profile${
             privatePersons.length === 1 ? "" : "s"
           } available for compatibility checks.`}
         >
-          {loading ? <PrivateUsersEmpty>Loading private users...</PrivateUsersEmpty> : null}
+          {loading ? <PrivateUsersEmpty>Loading private favorites...</PrivateUsersEmpty> : null}
 
           {!loading && privatePersons.length === 0 && !showCreateForm ? (
             <PrivateUsersEmpty>
-              No private users have been added yet. Use the plus card to create the first
+              No private favorites have been added yet. Use the plus card to create the first
               record.
             </PrivateUsersEmpty>
           ) : null}
@@ -540,7 +594,7 @@ export function PrivatePersonsManager() {
                         Edit Mode
                       </p>
                       <h3 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#2d1718]">
-                        Edit private user
+                        Edit private favorites
                       </h3>
                       <p className="mt-2 text-sm leading-6 text-[#2d1718]/70">
                         Update the birth details and save the changes.
@@ -591,6 +645,13 @@ export function PrivatePersonsManager() {
           onCancel={() => setConfirmTarget(null)}
           onConfirm={() => handleCompatibilityCheck(confirmTarget)}
           personName={confirmTarget.name}
+        />
+      ) : null}
+
+      {compatibilityError ? (
+        <CompatibilityErrorDialog
+          message={compatibilityError}
+          onClose={() => setCompatibilityError(null)}
         />
       ) : null}
 

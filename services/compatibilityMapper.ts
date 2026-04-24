@@ -14,12 +14,10 @@ const EXCLUDED_KEYS = new Set([
   "created_at",
   "updated_at",
   "person_id",
-  "person_name",
   "user",
   "matched_user",
-  "matched_user_username",
   "matched_private_person",
-  "matched_private_person_name",
+  "matched_user_name",
   "is_private_match",
   "overall_score",
   "upgrade_required",
@@ -27,10 +25,8 @@ const EXCLUDED_KEYS = new Set([
   "matched_user_id",
   "matched_private_person_id",
   "private_person_id",
-  "private_person_name",
   "profile_id",
   "target_profile_id",
-  "name",
 ]);
 
 const humanizeKey = (value: string) =>
@@ -63,6 +59,9 @@ const toStringValue = (value: unknown): string | null => {
   return null;
 };
 
+const hasOwnProperty = (value: Record<string, unknown>, key: string) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
 const resolveParameterDisplayValue = (parameter: Record<string, unknown>) => {
   const candidates = [
     parameter.score,
@@ -83,6 +82,14 @@ const resolveParameterDisplayValue = (parameter: Record<string, unknown>) => {
 
   if (Boolean(parameter.locked)) {
     return "Hidden until unlocked";
+  }
+
+  if (
+    hasOwnProperty(parameter, "score") ||
+    hasOwnProperty(parameter, "value") ||
+    hasOwnProperty(parameter, "result")
+  ) {
+    return "Not available";
   }
 
   return null;
@@ -167,6 +174,18 @@ const normalizeResultParameters = (raw: Record<string, unknown>) => {
   }));
 };
 
+const resolveMatchType = (
+  raw: Record<string, unknown>,
+): StoredCompatibilityResult["matchType"] => {
+  const hasValue = (value: unknown) => value !== null && value !== undefined;
+
+  if (raw.is_private_match === true) {
+    return "private";
+  }
+
+  return "public";
+};
+
 export const extractCompatibilityResults = (payload: unknown): CompatibilityResult[] => {
   if (Array.isArray(payload)) {
     return payload.filter((item) => typeof item === "object") as CompatibilityResult[];
@@ -222,11 +241,7 @@ export const normalizeCompatibilityResults = (
       0;
     const score = typeof scoreValue === "number" ? scoreValue : Number(scoreValue) || 0;
     const personName =
-      toStringValue(raw.matched_private_person_name) ??
-      toStringValue(raw.matched_user_username) ??
-      toStringValue(raw.private_person_name) ??
-      toStringValue(raw.person_name) ??
-      toStringValue(raw.name) ??
+      toStringValue(raw.matched_user_name) ??
       personLookup[personId] ??
       `Person ${index + 1}`;
     const summary =
@@ -241,6 +256,7 @@ export const normalizeCompatibilityResults = (
       id: `${personId}-${index}-${createdAt ?? "current"}`,
       personId,
       personName,
+      matchType: resolveMatchType(raw),
       score,
       summary,
       createdAt,
