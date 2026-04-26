@@ -152,6 +152,7 @@ export function PrivatePersonForm({
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
       <Input
+        autoFocus={mode === "edit"}
         label="Name"
         placeholder="Enter full name"
         value={values.name}

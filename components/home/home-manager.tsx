@@ -1503,6 +1503,7 @@ export function HomeManager() {
         </Surface>
 
         <Surface>
+          <div id="purchase-credits" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f5d5c8]">
             Paywall Nudge
           </p>

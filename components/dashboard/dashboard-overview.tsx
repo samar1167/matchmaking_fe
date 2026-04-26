@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import {
+  CompatibilityScoreLine,
+  CompatibilityScoreRing,
+  getCompatibilityCategory,
+  isNumericCompatibilityValue,
+} from "@/components/ui/compatibility-score";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
 import { compatibilityService } from "@/services/compatibilityService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
@@ -9,7 +15,7 @@ import { planService } from "@/services/planService";
 import { privatePersonsService } from "@/services/privatePersonsService";
 import { useAuthStore } from "@/store/authStore";
 import type { StoredCompatibilityResult } from "@/store/resultsStore";
-import type { PlanMeResponse } from "@/types/plan";
+import type { PlanMeResponse, PlanParameters } from "@/types/plan";
 import type { PrivatePerson } from "@/types/private-persons";
 
 const formatDate = (value?: string) => {
@@ -27,6 +33,11 @@ const formatDate = (value?: string) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+};
+
+const createPaymentReference = (credits: number) => {
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `dashboard-${credits}-${Date.now()}-${suffix}`;
 };
 
 function DashboardLogo() {
@@ -101,6 +112,21 @@ function DashboardEmpty({ children }: { children: ReactNode }) {
   );
 }
 
+function DashboardLoadingCard() {
+  return (
+    <div className="animate-pulse rounded-xl border border-[#EABFB9] bg-[#fffafa] p-5">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+        <div className="h-14 w-14 rounded-full bg-[#EABFB9]" />
+        <div className="space-y-2">
+          <div className="h-4 w-32 rounded-full bg-[#EABFB9]" />
+          <div className="h-3 w-24 rounded-full bg-[#EABFB9]/80" />
+        </div>
+        <div className="h-8 w-20 rounded-full bg-[#EABFB9]" />
+      </div>
+    </div>
+  );
+}
+
 function DashboardIllustration() {
   return (
     <div className="relative hidden min-h-56 overflow-hidden rounded-r-xl lg:block">
@@ -139,23 +165,13 @@ const getScoreTone = (score: number) => {
   return "text-[#A22E34]";
 };
 
-const getMatchLabel = (score: number) => {
-  if (score >= 85) {
-    return "Highly Compatible";
-  }
-
-  if (score >= 70) {
-    return "High Compatibility";
-  }
-
-  if (score >= 55) {
-    return "Moderate Match";
-  }
-
-  return "Low Match";
-};
-
-function RecentAnalysisRow({ result }: { result: StoredCompatibilityResult }) {
+function RecentAnalysisRow({
+  onOpenDetails,
+  result,
+}: {
+  onOpenDetails: () => void;
+  result: StoredCompatibilityResult;
+}) {
   return (
     <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-[#EABFB9] py-4 last:border-b-0">
       <DashboardAvatar label={result.personName} />
@@ -166,60 +182,15 @@ function RecentAnalysisRow({ result }: { result: StoredCompatibilityResult }) {
         </p>
       </div>
       <div className="text-right">
-        <p className={`font-display text-3xl font-bold ${getScoreTone(result.score)}`}>
-          {Math.round(result.score)}%
+        <p className={`font-display text-2xl font-bold ${getScoreTone(result.score)}`}>
+          {getCompatibilityCategory(result.score)}
         </p>
-        <p className="text-xs font-semibold text-[#2d1718]/65">{getMatchLabel(result.score)}</p>
       </div>
-      <DashboardAction href="/results">View Report</DashboardAction>
+      <ResultDetailsButton
+        label={`View compatibility details for ${result.personName}`}
+        onClick={onOpenDetails}
+      />
     </div>
-  );
-}
-
-function ProfileSnapshot() {
-  const profileRows = [
-    ["♡", "Long-term Orientation", "High", 84],
-    ["♨", "Emotional Needs", "Medium-High", 66],
-    ["▦", "Conflict Style", "Direct", 78],
-    ["≈", "Communication Style", "Expressive", 74],
-    ["♧", "Lifestyle Flexibility", "Medium", 62],
-  ];
-
-  return (
-    <DashboardPanel title="Your Profile Snapshot" action="View full profile" actionHref="/profile">
-      <div className="space-y-5">
-        {profileRows.map(([icon, label, value, width]) => (
-          <div key={label} className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-[#A22E34]">
-              {icon}
-            </span>
-            <div>
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-[#2d1718]">{label}</p>
-                <p className="text-sm text-[#2d1718]">{value}</p>
-              </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#EABFB9]">
-                <div
-                  className="h-full rounded-full bg-[#A22E34]"
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 rounded-xl border border-[#EABFB9] bg-[#fdf1f0] p-5">
-        <p className="text-sm font-bold text-[#901214]">Your Insight</p>
-        <p className="mt-2 text-sm leading-6 text-[#2d1718]/78">
-          You value deep emotional connection and honesty. You match best with
-          partners who are emotionally expressive and share similar long-term goals.
-        </p>
-        <Link href="/profile" className="mt-4 inline-flex text-sm font-bold text-[#901214]">
-          View Full Profile →
-        </Link>
-      </div>
-    </DashboardPanel>
   );
 }
 
@@ -249,50 +220,188 @@ function DashboardPanel({
   );
 }
 
-function TopCompatibleRow({
+const isLockedParameter = (key: string, parameters: PlanParameters) => {
+  const direct = parameters[key];
+
+  if (direct && direct.paid && !direct.free) {
+    return true;
+  }
+
+  const finalSegment = key.split(".").at(-1);
+
+  if (!finalSegment) {
+    return false;
+  }
+
+  const fallback = parameters[finalSegment];
+
+  return Boolean(fallback?.paid && !fallback.free);
+};
+
+const shouldBlurParameter = (
+  parameter: StoredCompatibilityResult["parameters"][number],
+  parameters: PlanParameters,
+) => {
+  if (typeof parameter.locked === "boolean") {
+    return parameter.locked;
+  }
+
+  return isLockedParameter(parameter.key, parameters);
+};
+
+function LockedParameterValue({ value }: { value: string }) {
+  return (
+    <div className="relative isolate overflow-hidden rounded-lg border border-[rgba(144,18,20,0.12)] bg-[linear-gradient(135deg,rgba(144,18,20,0.94)_0%,rgba(127,83,62,0.96)_100%)] px-3 py-3 text-white">
+      <span className="block select-none blur-md opacity-80">{value}</span>
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,10,0.08)_0%,rgba(12,13,10,0.62)_100%)]" />
+      <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-lg border border-[rgba(245,213,200,0.28)] bg-[rgba(12,13,10,0.72)] px-3 py-2 text-center backdrop-blur-sm">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[rgba(245,213,200,0.98)]">
+          Locked Insight
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CompatibilityDetailsDialog({
+  onClose,
+  parameters,
   result,
-  index,
 }: {
+  onClose: () => void;
+  parameters: PlanParameters;
   result: StoredCompatibilityResult;
-  index: number;
 }) {
-  const insights = [
-    ["Strong emotional alignment", "Similar long-term goals", "Slight lifestyle differences"],
-    ["High long-term potential", "Good communication fit", "Moderate conflict style gap"],
-    ["Emotional connection", "Different lifestyle pace", "Values align well"],
-  ][index % 3];
+  const hasLockedInsights = result.parameters.some((parameter) =>
+    shouldBlurParameter(parameter, parameters),
+  );
 
   return (
-    <div className="grid grid-cols-[auto_1fr_auto_1.1fr_auto] items-center gap-5 border-b border-[#EABFB9] py-4 last:border-b-0">
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-50 grid place-items-center bg-[#2d1718]/50 px-4 py-6"
+      role="dialog"
+    >
+      <div className="max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[#EABFB9] bg-[#fafafa] p-5 shadow-[0_24px_80px_rgba(45,23,24,0.28)]">
+        <div className="flex flex-col gap-4 border-b border-[#EABFB9] pb-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-4">
+            <CompatibilityScoreRing score={result.score} size="sm" />
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+                Compatibility
+              </p>
+              <h3 className="mt-2 font-display text-4xl font-bold leading-tight text-[#2d1718]">
+                {result.personName}
+              </h3>
+            </div>
+          </div>
+          <button
+            aria-label="Close compatibility details"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] text-xl font-bold text-[#901214] transition hover:border-[#901214]"
+            type="button"
+            onClick={onClose}
+          >
+            x
+          </button>
+        </div>
+
+        {result.summary ? (
+          <p className="mt-5 text-sm leading-6 text-[#2d1718]/70">{result.summary}</p>
+        ) : null}
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {result.parameters.length > 0 ? (
+            result.parameters.map((parameter) => {
+              const locked = shouldBlurParameter(parameter, parameters);
+              const numericValue = Number(parameter.value);
+              const showScoreLine =
+                !locked && isNumericCompatibilityValue(parameter.value);
+
+              return (
+                <div
+                  className="rounded-lg border border-[#EABFB9] bg-[#fffafa] p-4"
+                  key={`${result.id}-${parameter.key}`}
+                >
+                  {showScoreLine ? (
+                    <CompatibilityScoreLine label={parameter.label} score={numericValue} />
+                  ) : (
+                    <>
+                      <dt className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7F533E]">
+                        {parameter.label}
+                      </dt>
+                      <dd className="mt-3 min-h-12 text-sm font-semibold leading-6 text-[#2d1718]">
+                        {locked ? <LockedParameterValue value={parameter.value} /> : parameter.value}
+                      </dd>
+                    </>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed border-[#C07771] bg-[#fffafa] p-5 text-sm text-[#2d1718]/65 md:col-span-2">
+              No compatibility parameters were returned for this user.
+            </div>
+          )}
+        </div>
+
+        {hasLockedInsights ? (
+          <div className="mt-5 rounded-lg border border-[#EABFB9] bg-[#fffafa] px-4 py-4 text-sm leading-6 text-[#2d1718]/72">
+            <p>Free plan locks Premium insights. Purchase Credits to unlock.</p>
+            <Link
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md bg-[#901214] px-4 text-sm font-bold text-white transition hover:bg-[#961116]"
+              href="/dashboard#credits-access"
+            >
+              Purchase Credits
+            </Link>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ResultDetailsButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-xl font-bold text-[#901214]"
+      type="button"
+      onClick={onClick}
+    >
+      ›
+    </button>
+  );
+}
+
+function TopCompatibleRow({
+  onOpenDetails,
+  result,
+}: {
+  onOpenDetails: () => void;
+  result: StoredCompatibilityResult;
+}) {
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-5 border-b border-[#EABFB9] py-4 last:border-b-0">
       <DashboardAvatar label={result.personName} />
       <div>
         <p className="text-sm font-bold text-[#2d1718]">{result.personName}</p>
         <p className="mt-1 text-xs text-[#2d1718]/65">Compatibility profile</p>
       </div>
       <div className="text-center">
-        <p className={`font-display text-3xl font-bold ${getScoreTone(result.score)}`}>
-          {Math.round(result.score)}%
+        <p className={`font-display text-2xl font-bold ${getScoreTone(result.score)}`}>
+          {getCompatibilityCategory(result.score)}
         </p>
-        <p className="text-xs font-semibold text-[#c85f1a]">{getMatchLabel(result.score)}</p>
       </div>
-      <div className="space-y-1 text-xs text-[#2d1718]/72">
-        {insights.map((insight, insightIndex) => (
-          <p key={insight} className="flex items-center gap-2">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                insightIndex === 2 ? "bg-[#d6a11d]" : "bg-[#1f7a3f]"
-              }`}
-            />
-            {insight}
-          </p>
-        ))}
-      </div>
-      <Link
-        href="/results"
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-xl font-bold text-[#901214]"
-      >
-        ›
-      </Link>
+      <ResultDetailsButton
+        label={`View compatibility details for ${result.personName}`}
+        onClick={onOpenDetails}
+      />
     </div>
   );
 }
@@ -304,6 +413,10 @@ export function DashboardOverview() {
   const [topMatches, setTopMatches] = useState<StoredCompatibilityResult[]>([]);
   const [privatePersons, setPrivatePersons] = useState<PrivatePerson[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanMeResponse | null>(null);
+  const [selectedResult, setSelectedResult] = useState<StoredCompatibilityResult | null>(null);
+  const [isPurchasingCredits, setIsPurchasingCredits] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -360,19 +473,40 @@ export function DashboardOverview() {
   const strongestMatch = topMatches[0] ?? null;
   const availableCredits = planSummary?.credits ?? credits;
 
-  const unlockedParameters = useMemo(
-    () => Object.values(parameters).filter((item) => item.free).length,
-    [parameters],
-  );
-  const premiumParameters = useMemo(
-    () => Object.values(parameters).filter((item) => item.paid && !item.free).length,
-    [parameters],
-  );
-
   const displayName = user?.username || user?.first_name || user?.email || "Samar";
   const recentAnalyses = history.slice(0, 3);
   const topCompatiblePeople = (topMatches.length > 0 ? topMatches : history).slice(0, 3);
-  const matchesFound = topMatches.length || history.filter((result) => result.score >= 70).length;
+  const matchesFound = history.filter((result) => result.score >= 50).length;
+
+  const handlePurchaseCredits = async () => {
+    try {
+      setIsPurchasingCredits(true);
+      setPurchaseError(null);
+      setPurchaseMessage(null);
+
+      const purchaseResponse = await planService.purchase({
+        credits: 10,
+        payment_reference: createPaymentReference(10),
+      });
+
+      if (typeof purchaseResponse.credits === "number") {
+        setPlanSummary((current) => ({
+          ...(current ?? {}),
+          credits: purchaseResponse.credits,
+          total_credits: purchaseResponse.credits,
+        }));
+      } else {
+        const refreshedPlan = await planService.getCurrent();
+        setPlanSummary(refreshedPlan);
+      }
+
+      setPurchaseMessage("10 credits added to your account.");
+    } catch {
+      setPurchaseError("Unable to purchase credits right now.");
+    } finally {
+      setIsPurchasingCredits(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
@@ -387,11 +521,14 @@ export function DashboardOverview() {
             <p className="mt-4 max-w-md text-lg leading-8 text-[#2d1718]/76">
               You’re one step closer to building stronger, more meaningful relationships.
             </p>
-            <div className="mt-7 flex flex-wrap gap-5">
-              <DashboardAction href="/compatibility" variant="primary">
-                Check Compatibility →
-              </DashboardAction>
-              <DashboardAction href="/connections">Find Matches →</DashboardAction>
+            <div className="mt-7 flex flex-wrap items-center justify-between gap-5">
+              <div className="flex flex-wrap gap-5">
+                <DashboardAction href="/private-persons" variant="primary">
+                  <span className="text-white">Check Compatibility →</span>
+                </DashboardAction>
+                <DashboardAction href="/connections">Find Matches →</DashboardAction>
+              </div>
+              <DashboardAction href="/profile">My Profile</DashboardAction>
             </div>
           </div>
           <DashboardIllustration />
@@ -399,15 +536,27 @@ export function DashboardOverview() {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.9fr)]">
           <div className="grid gap-6">
-            <DashboardPanel title="Your Recent Analyses" action="View all">
+            <DashboardPanel
+              title="Top Compatible People For You"
+              action="View all"
+              actionHref="/top-scores"
+            >
               {isLoading ? (
-                <DashboardEmpty>Loading recent analyses...</DashboardEmpty>
-              ) : recentAnalyses.length > 0 ? (
-                recentAnalyses.map((result) => (
-                  <RecentAnalysisRow key={result.id} result={result} />
+                <div className="space-y-4">
+                  <DashboardLoadingCard />
+                  <DashboardLoadingCard />
+                  <DashboardLoadingCard />
+                </div>
+              ) : topCompatiblePeople.length > 0 ? (
+                topCompatiblePeople.map((result) => (
+                  <TopCompatibleRow
+                    key={result.id}
+                    onOpenDetails={() => setSelectedResult(result)}
+                    result={result}
+                  />
                 ))
               ) : (
-                <DashboardEmpty>No analyses yet. Run a compatibility check to begin.</DashboardEmpty>
+                <DashboardEmpty>No compatible people are available yet.</DashboardEmpty>
               )}
             </DashboardPanel>
 
@@ -425,42 +574,38 @@ export function DashboardOverview() {
                 ].map((item, index) => (
                   <p key={item} className="flex items-center gap-4 text-sm text-[#2d1718]">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fdf1f0] text-[#A22E34]">
-                      {["☆", "♡", "↗", "☵"][index]}
-                    </span>
-                    {item}
-                  </p>
+                    {["☆", "♡", "↗", "☵"][index]}
+                  </span>
+                  {item}
+                </p>
                 ))}
-              </div>
-              <div className="mt-6">
-                <DashboardAction href="/top-scores" variant="primary">
-                  View Matches →
-                </DashboardAction>
               </div>
             </DashboardPanel>
 
-            <DashboardPanel title="Top Compatible People For You" action="View all">
+            <DashboardPanel title="Your Recent Analyses" action="View all" actionHref="/top-scores">
               {isLoading ? (
-                <DashboardEmpty>Loading compatible people...</DashboardEmpty>
-              ) : topCompatiblePeople.length > 0 ? (
-                topCompatiblePeople.map((result, index) => (
-                  <TopCompatibleRow key={result.id} result={result} index={index} />
+                <DashboardEmpty>Loading recent analyses...</DashboardEmpty>
+              ) : recentAnalyses.length > 0 ? (
+                recentAnalyses.map((result) => (
+                  <RecentAnalysisRow
+                    key={result.id}
+                    onOpenDetails={() => setSelectedResult(result)}
+                    result={result}
+                  />
                 ))
               ) : (
-                <DashboardEmpty>No compatible people are available yet.</DashboardEmpty>
+                <DashboardEmpty>No analyses yet. Run a compatibility check to begin.</DashboardEmpty>
               )}
             </DashboardPanel>
           </div>
 
           <div className="grid content-start gap-6">
-            <ProfileSnapshot />
-
             <DashboardPanel title="Quick Stats">
               <div className="divide-y divide-[#EABFB9]">
                 {[
                   ["▣", "Analyses Done", history.length],
-                  ["♡", "Matches Found", matchesFound],
+                  ["♡", "Strong Matches Found", matchesFound],
                   ["♙", "Connections", privatePersons.length],
-                  ["▤", "Reports Unlocked", unlockedParameters + premiumParameters],
                 ].map(([icon, label, value]) => (
                   <div key={label} className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-4">
@@ -474,6 +619,54 @@ export function DashboardOverview() {
                 ))}
               </div>
             </DashboardPanel>
+
+            <section
+              id="credits-access"
+              className="rounded-xl border border-[#EABFB9] bg-[linear-gradient(145deg,#fdf1f0_0%,#fffafa_100%)] p-6 shadow-[0_10px_24px_rgba(144,18,20,0.05)]"
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
+                Credit Access
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-bold text-[#2d1718]">
+                Purchase Credits
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-[#2d1718]/72">
+                Unlock premium compatibility insights and keep checking new matches without
+                interruption.
+              </p>
+              <div className="mt-5 rounded-xl border border-[#EABFB9] bg-[#fafafa] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7F533E]">
+                  Available Credits
+                </p>
+                <p className="mt-2 font-display text-4xl font-bold text-[#901214]">
+                  {availableCredits}
+                </p>
+              </div>
+              {purchaseError ? (
+                <div className="mt-4 rounded-lg border border-[#EABFB9] bg-[#fafafa] px-4 py-3 text-sm font-semibold text-[#901214]">
+                  {purchaseError}
+                </div>
+              ) : null}
+              {purchaseMessage ? (
+                <div className="mt-4 rounded-lg border border-[#EABFB9] bg-[#fafafa] px-4 py-3 text-sm font-semibold text-[#1f7a3f]">
+                  {purchaseMessage}
+                </div>
+              ) : null}
+              <button
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-[#901214] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(144,18,20,0.14)] transition hover:bg-[#961116] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isPurchasingCredits}
+                type="button"
+                onClick={handlePurchaseCredits}
+              >
+                {isPurchasingCredits ? "Purchasing..." : "Buy 10 Credits"}
+              </button>
+              <Link
+                href="/payment-history"
+                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-md border border-[#C07771] bg-[#fafafa] px-5 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
+              >
+                Payment History
+              </Link>
+            </section>
 
             <DashboardPanel title="What’s New">
               <div className="space-y-5">
@@ -515,10 +708,10 @@ export function DashboardOverview() {
           </div>
           <div className="text-center">
             <Link
-              href="/compatibility"
-              className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#fafafa] px-12 text-sm font-bold text-[#901214]"
+              href="/private-persons"
+              className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#fafafa] px-12 text-sm font-bold text-[#0c0d0a]"
             >
-              Check Compatibility Now →
+              <span className="text-[#0c0d0a]">Check Compatibility Now →</span>
             </Link>
             <p className="mt-3 text-sm text-white/90">🔒 It’s free to get started</p>
           </div>
@@ -543,6 +736,14 @@ export function DashboardOverview() {
           </div>
         </div>
       </footer>
+
+      {selectedResult ? (
+        <CompatibilityDetailsDialog
+          onClose={() => setSelectedResult(null)}
+          parameters={parameters}
+          result={selectedResult}
+        />
+      ) : null}
     </main>
   );
 }
