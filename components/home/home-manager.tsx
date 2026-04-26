@@ -301,11 +301,11 @@ function MiniActionLink({
 }
 
 const reportMetrics = [
-  { label: "Long-term compatibility", value: 82 },
-  { label: "Emotional alignment", value: 88 },
-  { label: "Physical attraction", value: 76 },
-  { label: "Communication", value: 84 },
-  { label: "Conflict resolution", value: 79 },
+  { label: "Understanding", value: 82, rating: "Very Good" },
+  { label: "Durability", value: 95, rating: "Excellent" },
+  { label: "Chemistry", value: 67, rating: "Good" },
+  { label: "Sizzle", value: 40, rating: "Average" },
+  { label: "Destiny", value: 70, rating: "Good" },
 ];
 
 const trustItems = [
@@ -385,19 +385,21 @@ function LandingButton({
   href,
   children,
   variant = "primary",
+  className = "",
 }: {
   href: string;
   children: ReactNode;
   variant?: "primary" | "secondary";
+  className?: string;
 }) {
   return (
     <Link
       href={href}
-      className={
+      className={`${
         variant === "primary"
           ? "inline-flex min-h-12 items-center justify-center rounded-[0.4rem] bg-[#901214] px-6 text-sm font-bold text-white shadow-[0_14px_28px_rgba(144,18,20,0.16)] transition hover:bg-[#961116]"
           : "inline-flex min-h-12 items-center justify-center rounded-[0.4rem] border border-[#C07771] bg-[#fafafa] px-6 text-sm font-bold text-[#901214] transition hover:border-[#901214]"
-      }
+      } ${className}`}
     >
       {children}
     </Link>
@@ -413,7 +415,7 @@ function CompatibilityReportCard() {
 
       <div className="mt-5 flex items-center justify-center gap-5">
         <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] text-xl font-bold text-[#901214]">
-          A
+          Y
         </div>
         <div className="flex min-w-40 flex-col items-center">
           <div className="flex w-full items-center gap-3">
@@ -421,10 +423,10 @@ function CompatibilityReportCard() {
             <span className="text-xl text-[#901214]">♥</span>
             <span className="h-px flex-1 border-t border-dashed border-[#C07771]" />
           </div>
-          <p className="mt-2 text-sm font-bold text-[#2d1718]">You & Alex</p>
+          <p className="mt-2 text-sm font-bold text-[#2d1718]">You & X</p>
         </div>
         <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] text-xl font-bold text-[#901214]">
-          Y
+          X
         </div>
       </div>
 
@@ -443,14 +445,8 @@ function CompatibilityReportCard() {
                 style={{ width: `${metric.value}%` }}
               />
             </div>
-            <span className="min-w-16 text-right text-xs font-bold text-[#2d1718]">
-              {metric.label === "Long-term compatibility"
-                ? `${metric.value}%`
-                : metric.value > 85
-                  ? "High"
-                  : metric.value > 80
-                    ? "Good"
-                    : "Moderate"}
+            <span className="min-w-24 text-right text-xs font-bold text-[#2d1718]">
+              {metric.rating}
             </span>
           </div>
         ))}
@@ -600,6 +596,17 @@ function ComparisonRow({
 }
 
 function PublicLandingPage() {
+  const heroWords = ["sex", "love", "friendship", "time"] as const;
+  const [heroWordIndex, setHeroWordIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setHeroWordIndex((currentIndex) => (currentIndex + 1) % heroWords.length);
+    }, 1800);
+
+    return () => window.clearInterval(intervalId);
+  }, [heroWords.length]);
+
   return (
     <main className="min-h-screen bg-[#fffafa] text-[#2d1718]">
       <section className="bg-[linear-gradient(180deg,#fffafa_0%,#fdf1f0_100%)] px-8 py-12">
@@ -609,14 +616,24 @@ function PublicLandingPage() {
               real compatibility. real relationships.
             </p>
             <h1 className="mt-6 max-w-3xl font-display text-6xl font-bold leading-[1.08] tracking-tight text-[#2d1718]">
-              Know if a relationship will <span className="italic text-[#901214]">actually</span> work — before you invest in it.
+              For the best{" "}
+              <span className="inline-flex min-w-[8ch] items-baseline justify-center text-[#901214]">
+                
+                <span key={heroWords[heroWordIndex]} className="hero-rotating-word inline-block italic">
+                  {heroWords[heroWordIndex]}
+                </span>
+                
+              </span>{" "}
+              <br/>of your life.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#2d1718]/75">
               We analyze what truly matters: emotional alignment, physical
               attraction, communication, and long-term potential.
             </p>
             <div className="mt-8 flex flex-wrap gap-5">
-              <LandingButton href="/compatibility">Check Compatibility →</LandingButton>
+              <LandingButton href="/private-persons" className="!text-white">
+                Check Compatibility →
+              </LandingButton>
               <LandingButton href="#how-it-works" variant="secondary">
                 See How It Works ▶
               </LandingButton>
@@ -683,7 +700,9 @@ function PublicLandingPage() {
                 Analyze your compatibility privately and get honest insights.
               </p>
               <div className="mt-4">
-                <LandingButton href="/private-persons">Analyze a Relationship →</LandingButton>
+                <LandingButton href="/private-persons" className="!text-white">
+                  Analyze a Relationship →
+                </LandingButton>
               </div>
             </div>
             <UseCaseIllustration variant="known" />
@@ -698,7 +717,9 @@ function PublicLandingPage() {
                 Discover people who match your relationship profile and values.
               </p>
               <div className="mt-4">
-                <LandingButton href="/connections">Find Matches →</LandingButton>
+                <LandingButton href="/connections" className="!text-white">
+                  Find Matches →
+                </LandingButton>
               </div>
             </div>
             <PersonCluster />
@@ -757,8 +778,8 @@ function PublicLandingPage() {
           </div>
           <div className="text-center">
             <Link
-              href="/compatibility"
-              className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#fafafa] px-12 text-sm font-bold text-[#901214]"
+              href="/private-persons"
+              className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#fafafa] px-12 text-sm font-bold !text-black transition hover:bg-[#eabfb9]"
             >
               Check Compatibility Now →
             </Link>

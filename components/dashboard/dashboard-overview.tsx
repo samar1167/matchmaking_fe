@@ -4,8 +4,8 @@ import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import {
   CompatibilityScoreLine,
-  CompatibilityScoreRing,
   getCompatibilityCategory,
+  getScoreOnTen,
   isNumericCompatibilityValue,
 } from "@/components/ui/compatibility-score";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
@@ -275,6 +275,8 @@ function CompatibilityDetailsDialog({
   const hasLockedInsights = result.parameters.some((parameter) =>
     shouldBlurParameter(parameter, parameters),
   );
+  const leftCircleLabel = "You";
+  const rightCircleLabel = result.personName;
 
   return (
     <div
@@ -282,18 +284,12 @@ function CompatibilityDetailsDialog({
       className="fixed inset-0 z-50 grid place-items-center bg-[#2d1718]/50 px-4 py-6"
       role="dialog"
     >
-      <div className="max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[#EABFB9] bg-[#fafafa] p-5 shadow-[0_24px_80px_rgba(45,23,24,0.28)]">
-        <div className="flex flex-col gap-4 border-b border-[#EABFB9] pb-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-4">
-            <CompatibilityScoreRing score={result.score} size="sm" />
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#A22E34]">
-                Compatibility
-              </p>
-              <h3 className="mt-2 font-display text-4xl font-bold leading-tight text-[#2d1718]">
-                {result.personName}
-              </h3>
-            </div>
+      <div className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[#EABFB9] bg-[#fafafa] p-6 shadow-[0_24px_80px_rgba(45,23,24,0.28)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-center text-xl font-bold tracking-tight text-[#2d1718]">
+              Your Compatibility Snapshot
+            </p>
           </div>
           <button
             aria-label="Close compatibility details"
@@ -305,15 +301,43 @@ function CompatibilityDetailsDialog({
           </button>
         </div>
 
+        <div className="mt-5 flex items-center justify-center gap-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] px-2 text-center text-xs font-bold leading-tight text-[#901214]">
+            {leftCircleLabel}
+          </div>
+          <div className="flex min-w-40 flex-col items-center">
+            <div className="flex w-full items-center gap-3">
+              <span className="h-px flex-1 border-t border-dashed border-[#C07771]" />
+              <span className="text-xl text-[#901214]">♥</span>
+              <span className="h-px flex-1 border-t border-dashed border-[#C07771]" />
+            </div>
+            <p className="mt-2 text-sm font-bold text-[#2d1718]">
+              You & {result.personName}
+            </p>
+          </div>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] px-2 text-center text-[10px] font-bold leading-tight text-[#901214]">
+            {rightCircleLabel}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-[#EABFB9] bg-[#fffafa] p-4">
+          <CompatibilityScoreLine label="Compatibility Score" score={result.score} />
+        </div>
+
         {result.summary ? (
-          <p className="mt-5 text-sm leading-6 text-[#2d1718]/70">{result.summary}</p>
+          <div className="mt-6 rounded-lg border border-[#EABFB9] bg-[#fdf1f0] p-4">
+            <p className="text-sm font-bold text-[#901214]">Key Insight</p>
+            <p className="mt-1 text-sm leading-6 text-[#2d1718]">{result.summary}</p>
+          </div>
         ) : null}
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <div className="mt-6 grid gap-3.5 md:grid-cols-2">
           {result.parameters.length > 0 ? (
             result.parameters.map((parameter) => {
               const locked = shouldBlurParameter(parameter, parameters);
               const numericValue = Number(parameter.value);
+              const numericScoreOnTen = getScoreOnTen(numericValue);
+              const numericCategory = getCompatibilityCategory(numericValue);
               const showScoreLine =
                 !locked && isNumericCompatibilityValue(parameter.value);
 
@@ -323,7 +347,27 @@ function CompatibilityDetailsDialog({
                   key={`${result.id}-${parameter.key}`}
                 >
                   {showScoreLine ? (
-                    <CompatibilityScoreLine label={parameter.label} score={numericValue} />
+                    <div className="grid grid-cols-[1fr_1.25fr_auto] items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EABFB9] text-xs text-[#901214]">
+                          ♥
+                        </span>
+                        <span className="text-xs font-semibold text-[#2d1718]">
+                          {parameter.label}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-[#EABFB9]">
+                        <div
+                          className="h-full rounded-full bg-[#A22E34]"
+                          style={{
+                            width: `${Math.max(4, (numericScoreOnTen / 10) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="min-w-24 text-right text-xs font-bold text-[#2d1718]">
+                        {numericCategory}
+                      </span>
+                    </div>
                   ) : (
                     <>
                       <dt className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7F533E]">
