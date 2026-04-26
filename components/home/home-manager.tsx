@@ -458,7 +458,6 @@ function CompatibilityReportCard() {
           You share strong values and long-term goals. Work on communication
           style under stress.
         </p>
-        <p className="mt-3 text-sm font-bold text-[#901214]">View Full Report →</p>
       </div>
     </div>
   );
@@ -507,20 +506,14 @@ function StepCard({
 
 function PersonCluster() {
   return (
-    <div className="relative h-36">
-      <div className="absolute left-1/2 top-4 h-24 w-24 -translate-x-1/2 rounded-full border border-dashed border-[#C07771]" />
-      <div className="absolute left-4 top-14 flex h-14 w-14 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] text-lg font-bold text-[#901214]">
-        A
-      </div>
-      <div className="absolute right-4 top-14 flex h-14 w-14 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] text-lg font-bold text-[#901214]">
-        B
-      </div>
-      <div className="absolute left-1/2 top-0 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-[#C07771] bg-[#EABFB9] text-lg font-bold text-[#901214]">
-        C
-      </div>
-      <div className="absolute left-1/2 top-16 -translate-x-1/2 text-4xl text-[#901214]">
-        ♥
-      </div>
+    <div className="relative flex h-full min-h-44 items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_72%_28%,rgba(255,255,255,0.58),transparent_26%),linear-gradient(180deg,#fdf1f0_0%,#f7e2de_100%)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(192,119,113,0.12),transparent_30%)]" />
+      <img
+        src="/generated/find-compatible-network.png"
+        alt="A network of compatible people"
+        className="absolute inset-0 z-10 h-full w-full object-cover object-center"
+      />
+      <div className="absolute inset-y-0 left-0 z-20 w-18 bg-[linear-gradient(90deg,#fdf1f0_0%,rgba(253,241,240,0.76)_42%,rgba(253,241,240,0)_100%)]" />
     </div>
   );
 }
@@ -531,12 +524,14 @@ function UseCaseIllustration({ variant }: { variant: "known" | "discover" }) {
   }
 
   return (
-    <div className="relative h-36 overflow-hidden">
-      <div className="absolute bottom-0 left-12 h-28 w-20 rounded-t-full bg-[#C07771]" />
-      <div className="absolute bottom-0 right-20 h-32 w-24 rounded-t-full bg-[#B2806B]" />
-      <div className="absolute bottom-20 left-16 h-12 w-12 rounded-full bg-[#EABFB9]" />
-      <div className="absolute bottom-24 right-24 h-12 w-12 rounded-full bg-[#EABFB9]" />
-      <div className="absolute bottom-0 right-0 h-20 w-36 rounded-t-full bg-[#EABFB9]/70" />
+    <div className="relative flex h-full min-h-44 items-end justify-center overflow-hidden bg-[radial-gradient(circle_at_34%_18%,rgba(255,255,255,0.72),transparent_30%),linear-gradient(180deg,#fdf1f0_0%,#f6deda_100%)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(192,119,113,0.12),transparent_28%)]" />
+      <img
+        src="/generated/home-known-couple.png"
+        alt="A smiling couple"
+        className="absolute bottom-0 right-[-8%] z-10 h-[112%] w-[128%] max-w-none object-cover object-[58%_bottom]"
+      />
+      <div className="absolute inset-y-0 left-0 z-20 w-16 bg-[linear-gradient(90deg,#fdf1f0_0%,rgba(253,241,240,0.72)_45%,rgba(253,241,240,0)_100%)]" />
     </div>
   );
 }
