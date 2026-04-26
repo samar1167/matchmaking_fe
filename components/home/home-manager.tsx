@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { CompatibilityScoreLine } from "@/components/ui/compatibility-score";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { compatibilityService } from "@/services/compatibilityService";
 import { connectionService } from "@/services/connectionService";
 import { normalizeCompatibilityResults } from "@/services/compatibilityMapper";
@@ -463,20 +464,6 @@ function CompatibilityReportCard() {
   );
 }
 
-function LusterLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-3 text-[#901214]">
-      <span className="relative flex h-8 w-8 items-center justify-center">
-        <span className="absolute left-1 top-1 h-5 w-5 rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-        <span className="absolute right-1 top-1 h-5 w-5 -rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-      </span>
-      <span className="font-display text-3xl font-bold leading-none tracking-tight">
-        Luster
-      </span>
-    </Link>
-  );
-}
-
 function StepCard({
   icon,
   title,
@@ -784,30 +771,7 @@ function PublicLandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-[#EABFB9] bg-[#fffafa] px-8 py-5">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
-          <LusterLogo />
-          <div className="flex flex-wrap justify-center gap-8 text-sm text-[#2d1718]/70">
-            {[
-              "About Us",
-              "How It Works",
-              "Privacy Policy",
-              "Terms of Service",
-              "Contact Us",
-            ].map((link) => (
-              <Link key={link} href="/">
-                {link}
-              </Link>
-            ))}
-          </div>
-          <div className="flex gap-4 text-[#901214]">
-            <span>●</span>
-            <span>◎</span>
-            <span>◒</span>
-            <span>in</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }

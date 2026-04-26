@@ -8,6 +8,7 @@ import {
   PrivatePersonForm,
 } from "@/components/private-persons/private-person-form";
 import { PrivatePersonCard } from "@/components/private-persons/private-person-card";
+import { SiteFooter } from "@/components/layout/site-footer";
 import {
   CompatibilityScoreLine,
   getCompatibilityCategory,
@@ -680,6 +681,8 @@ export function PrivatePersonsManager() {
           ) : null}
         </PrivateUsersSection>
       </div>
+
+      <SiteFooter />
 
       {confirmTarget ? (
         <CompatibilityConfirmDialog

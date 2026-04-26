@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
+import { SiteFooter } from "@/components/layout/site-footer";
 import {
   CompatibilityScoreLine,
   getCompatibilityCategory,
@@ -39,20 +40,6 @@ const createPaymentReference = (credits: number) => {
   const suffix = Math.random().toString(36).slice(2, 8);
   return `dashboard-${credits}-${Date.now()}-${suffix}`;
 };
-
-function DashboardLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-3 text-[#901214]">
-      <span className="relative flex h-8 w-8 items-center justify-center">
-        <span className="absolute left-1 top-1 h-5 w-5 rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-        <span className="absolute right-1 top-1 h-5 w-5 -rotate-45 rounded-tl-full rounded-tr-full border-2 border-[#901214]" />
-      </span>
-      <span className="font-display text-3xl font-bold leading-none tracking-tight">
-        Luster
-      </span>
-    </Link>
-  );
-}
 
 function DashboardAction({
   children,
@@ -762,24 +749,7 @@ export function DashboardOverview() {
         </section>
       </div>
 
-      <footer className="border-t border-[#EABFB9] bg-[#fffafa] px-8 py-5">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
-          <DashboardLogo />
-          <div className="flex flex-wrap justify-center gap-8 text-sm text-[#2d1718]/70">
-            {["About Us", "How It Works", "Privacy Policy", "Terms of Service", "Contact Us"].map((link) => (
-              <Link key={link} href="/">
-                {link}
-              </Link>
-            ))}
-          </div>
-          <div className="flex gap-4 text-[#901214]">
-            <span>●</span>
-            <span>◎</span>
-            <span>◒</span>
-            <span>in</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
 
       {selectedResult ? (
         <CompatibilityDetailsDialog

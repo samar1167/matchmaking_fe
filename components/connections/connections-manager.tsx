@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ChatDialog } from "@/components/chat/chat-dialog";
+import { SiteFooter } from "@/components/layout/site-footer";
 import {
   CompatibilityScoreLine,
   getCompatibilityCategory,
@@ -1469,6 +1470,7 @@ export function ConnectionsManager() {
         </ConnectionsSection>
 
       </div>
+        <SiteFooter />
         <ChatDialog
           currentProfileId={currentProfile?.id}
           currentUserId={currentProfile?.user?.id}
